@@ -1,0 +1,105 @@
+.guidLayout {
+  width: clamp(var(--app-min-width, 360px), calc(100% - 32px), 800px);
+  max-width: 100%;
+  padding: 0 16px;
+  box-sizing: border-box;
+  margin: 0 auto;
+}
+
+.guidInputCard {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.actionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.actionTools {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 1;
+}
+
+.actionSubmit {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.lightPlaceholder::placeholder {
+  color: var(--color-text-3);
+  opacity: 0.6;
+}
+
+.plusButtonRotate {
+  animation: rotate-animation 0.3s ease-in-out;
+}
+
+@keyframes rotate-animation {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(45deg);
+  }
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+  .guidLayout {
+    width: clamp(var(--app-min-width, 360px), calc(100% - 32px), 100%);
+    padding: 0 16px;
+    box-sizing: border-box;
+  }
+
+  .guidInputCard {
+    width: 100%;
+  }
+
+  .actionRow {
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+
+  .actionTools {
+    gap: 8px;
+    flex-shrink: 1;
+    min-width: 0;
+  }
+
+  .actionSubmit {
+    flex-shrink: 0;
+    margin-left: 8px;
+  }
+}
+
+/* 浅色占位符 */
+.lightPlaceholder :global(textarea::placeholder) {
+  color: var(--text-disabled) !important;
+  opacity: 1 !important;
+}
+
+/* iPhone专门优化 */
+@supports (-webkit-touch-callout: none) {
+  .actionRow {
+    flex-wrap: nowrap !important;
+  }
+
+  .actionTools {
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .actionSubmit {
+    flex-shrink: 0;
+  }
+}

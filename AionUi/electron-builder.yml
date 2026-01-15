@@ -1,0 +1,157 @@
+appId: com.aionui.app
+productName: AionUi
+executableName: AionUi
+copyright: Copyright © 2024 AionUi
+
+asar:
+  smartUnpack: true
+
+directories:
+  output: out
+  buildResources: resources
+
+files:
+  - .webpack/main/**/*
+  - .webpack/renderer/**/*
+  - public/**/*
+  - rules/**/*
+  - skills/**/*
+  - assistant/**/*
+  - package.json
+  - node_modules/better-sqlite3/**/*
+  - node_modules/bcrypt/**/*
+  - node_modules/node-pty/**/*
+  - node_modules/@mapbox/**/*
+  - node_modules/detect-libc/**/*
+  - node_modules/prebuild-install/**/*
+  - node_modules/node-gyp-build/**/*
+  - node_modules/bindings/**/*
+  # tree-sitter WASM dependencies
+  - node_modules/web-tree-sitter/**/*
+  - node_modules/tree-sitter-bash/**/*
+  # CRITICAL: Exclude ALL tree-sitter native binaries to prevent signing issues
+  - '!**/node_modules/tree-sitter-*/prebuilds/**'
+  - '!**/node_modules/tree-sitter-*/build/**'
+  - '!**/node_modules/tree-sitter-*/src/**'
+  - '!**/node_modules/tree-sitter-*/**/*.node'
+  - '!**/node_modules/tree-sitter-*/**/*.obj'
+  - '!**/node_modules/tree-sitter-*/**/*.o'
+  - '!**/node_modules/tree-sitter-*/**/*.cc'
+  - '!**/node_modules/tree-sitter-*/**/*.c'
+  # Exclude dev/test files
+  - '!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}'
+  - '!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}'
+  - '!**/node_modules/*/{*.test.js,*.spec.js,*.test.ts,*.spec.ts}'
+  - '!**/node_modules/*.d.ts'
+  - '!**/node_modules/.bin'
+  - '!**/node_modules/*/{docs,documentation,doc}'
+  # Exclude system files
+  - '!**/{.DS_Store,.git,.gitignore,.gitattributes}'
+  - '!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}'
+  - '!**/{appveyor.yml,.travis.yml,circle.yml}'
+  - '!**/{npm-debug.log,yarn.lock,.yarn-metadata.json,yarn-error.log}'
+  # Exclude large packages
+  - '!**/node_modules/{@img,@emnapi}/**'
+  - '!**/node_modules/@img/sharp-*/**'
+  - '!**/node_modules/@anthropic-ai/claude-code/vendor/**'
+  - '!**/node_modules/@anthropic-ai/claude-agent-sdk/vendor/**'
+  # Exclude JAR files and JNI libraries that cause notarization issues
+  - '!**/*.jar'
+  - '!**/*.jnilib'
+  # Exclude all vendor directories to prevent unsigned binaries
+  - '!**/node_modules/*/vendor/**'
+  - '!**/node_modules/@*/*/vendor/**'
+  # Re-include vendor dirs for native modules that need them (if any)
+  - 'node_modules/better-sqlite3/vendor/**'
+  - 'node_modules/bcrypt/vendor/**'
+  - 'node_modules/node-pty/vendor/**'
+  # Exclude webpack source maps
+  - '!**/*.map'
+  - '!**/webpack-stats.json'
+  # Exclude syntax highlighter languages (keep common ones)
+  - '!**/.webpack/**/react-syntax-highlighter_languages_highlight_*'
+  - '.webpack/**/react-syntax-highlighter_languages_highlight_{javascript,typescript,python,java,cpp,c,html,css,json,xml,yaml,shell,bash,dockerfile,sql,markdown,go,rust,php}'
+
+extraResources:
+  - from: public
+    to: .
+
+win:
+  target:
+    - nsis
+#    - msi
+    - zip
+  # icon: resources/app.ico  # Temporarily disabled - current ico is 32x32, need 256x256+
+  artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+
+mac:
+  target:
+    - dmg
+    - zip
+  icon: resources/app.icns
+  artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+  category: public.app-category.productivity
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: entitlements.plist
+  entitlementsInherit: entitlements.plist
+
+afterPack: scripts/afterPack.js
+afterSign: scripts/afterSign.js
+
+linux:
+  target:
+    - target: deb
+      arch: [x64, arm64] # armv7l
+    - target: AppImage
+      arch: [x64, arm64]
+  icon: resources/app.png
+  artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+  category: Utility
+  maintainer: aionui
+  vendor: aionui
+  synopsis: ${description}
+  description: ${description}
+  desktop:
+    entry:
+      Name: AionUi
+      Comment: ${description}
+      Icon: aionui
+      Categories: Office;Utility;
+
+npmRebuild: false
+buildDependenciesFromSource: false
+nodeGypRebuild: false
+
+asarUnpack:
+  - "**/node_modules/better-sqlite3/**/*"
+  - "**/node_modules/bcrypt/**/*"
+  - "**/node_modules/node-pty/**/*"
+  - "**/node_modules/@mapbox/**/*"
+  - "**/node_modules/detect-libc/**/*"
+  - "**/node_modules/prebuild-install/**/*"
+  - "**/node_modules/node-gyp-build/**/*"
+  - "**/node_modules/bindings/**/*"
+  # tree-sitter WASM files need to be unpacked for fs.readFile access
+  - "**/node_modules/web-tree-sitter/**/*"
+  - "**/node_modules/tree-sitter-bash/**/*"
+
+compression: maximum
+removePackageScripts: true
+electronDownload:
+  cache: ${env.ELECTRON_CACHE}
+
+publish:
+  provider: github
+  owner: ${env.GITHUB_REPOSITORY_OWNER:-aionui}
+  repo: ${env.GITHUB_REPOSITORY_NAME:-AionUi}
+  publishAutoUpdate: false
