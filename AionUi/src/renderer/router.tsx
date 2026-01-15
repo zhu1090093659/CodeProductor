@@ -9,6 +9,8 @@ import AgentSettings from './pages/settings/AgentSettings';
 import DisplaySettings from './pages/settings/DisplaySettings';
 import GeminiSettings from './pages/settings/GeminiSettings';
 import ModeSettings from './pages/settings/ModeSettings';
+import CliProviderSettings from './pages/settings/CliProviderSettings';
+import SkillSettings from './pages/settings/SkillSettings';
 import SystemSettings from './pages/settings/SystemSettings';
 import ToolsSettings from './pages/settings/ToolsSettings';
 import LoginPage from './pages/login';
@@ -41,11 +43,13 @@ const PanelRoute: React.FC<{ layout: React.ReactElement }> = ({ layout }) => {
           <Route path='/conversation/:id' element={<Conversation />} />
           <Route path='/settings/gemini' element={<GeminiSettings />} />
           <Route path='/settings/model' element={<ModeSettings />} />
+          <Route path='/settings/providers' element={<CliProviderSettings />} />
           <Route path='/settings/agent' element={<AgentSettings />} />
           <Route path='/settings/display' element={<DisplaySettings />} />
           <Route path='/settings/system' element={<SystemSettings />} />
           <Route path='/settings/about' element={<About />} />
           <Route path='/settings/tools' element={<ToolsSettings />} />
+          <Route path='/settings/skills' element={<SkillSettings />} />
           <Route path='/settings' element={<Navigate to='/settings/gemini' replace />} />
           <Route path='/test/components' element={<ComponentsShowcase />} />
         </Route>

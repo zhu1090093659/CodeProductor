@@ -708,18 +708,49 @@ export const loadSkillsContent = async (enabledSkills: string[]): Promise<string
   const skillsDir = getSkillsDir();
   const skillContents: string[] = [];
 
-  for (const skillName of enabledSkills) {
-    // skill 文件名格式：skillName.md
-    const skillFile = path.join(skillsDir, `${skillName}.md`);
-    try {
-      if (existsSync(skillFile)) {
-        const content = await fs.readFile(skillFile, 'utf-8');
-        if (content.trim()) {
-          skillContents.push(`## Skill: ${skillName}\n${content}`);
+  const parseFrontMatter = (content: string) => {
+    const match = content.match(/^---\s*\n([\s\S]*?)\n---/);
+    if (!match) return { name: '', body: content };
+    const yaml = match[1];
+    const nameMatch = yaml.match(/^name:\s*(.+)$/m);
+    const name = nameMatch ? nameMatch[1].trim() : '';
+    const body = content.slice(match[0].length).trim();
+    return { name, body };
+  };
+
+  const indexSkills = async (dirPath: string, map: Map<string, string>) => {
+    const entries = await fs.readdir(dirPath, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dirPath, entry.name);
+      if (entry.isDirectory()) {
+        await indexSkills(fullPath, map);
+        continue;
+      }
+      if (entry.isFile() && entry.name.toLowerCase() === 'skill.md') {
+        try {
+          const content = await fs.readFile(fullPath, 'utf-8');
+          const parsed = parseFrontMatter(content);
+          if (parsed.name && !map.has(parsed.name)) {
+            map.set(parsed.name, parsed.body || content);
+          }
+        } catch (error) {
+          console.warn(`[AionUi] Failed to read skill file ${fullPath}:`, error);
         }
       }
-    } catch (error) {
-      console.warn(`[AionUi] Failed to load skill ${skillName}:`, error);
+    }
+  };
+
+  const skillMap = new Map<string, string>();
+  try {
+    await indexSkills(skillsDir, skillMap);
+  } catch (error) {
+    console.warn('[AionUi] Failed to scan skills directory:', error);
+  }
+
+  for (const skillName of enabledSkills) {
+    const content = skillMap.get(skillName);
+    if (content && content.trim()) {
+      skillContents.push(`## Skill: ${skillName}\n${content.trim()}`);
     }
   }
 

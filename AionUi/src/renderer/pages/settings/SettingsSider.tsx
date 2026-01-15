@@ -1,5 +1,5 @@
 import FlexFullContainer from '@/renderer/components/FlexFullContainer';
-import { Computer, Gemini, Info, LinkCloud, System, Toolkit, Robot } from '@icon-park/react';
+import { Computer, Gemini, Info, LinkCloud, System, Toolkit, Robot, SettingOne, Magic } from '@icon-park/react';
 import classNames from 'classnames';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -24,6 +24,11 @@ const SettingsSider: React.FC<{ collapsed?: boolean }> = ({ collapsed = false })
         path: 'model',
       },
       {
+        label: t('settings.providers', { defaultValue: 'Providers' }),
+        icon: <SettingOne />,
+        path: 'providers',
+      },
+      {
         label: t('settings.assistants', { defaultValue: 'Assistants' }),
         icon: <Robot />,
         path: 'agent',
@@ -32,6 +37,11 @@ const SettingsSider: React.FC<{ collapsed?: boolean }> = ({ collapsed = false })
         label: t('settings.tools'),
         icon: <Toolkit />,
         path: 'tools',
+      },
+      {
+        label: t('settings.skills', { defaultValue: 'Skills' }),
+        icon: <Magic />,
+        path: 'skills',
       },
       {
         label: t('settings.display'),

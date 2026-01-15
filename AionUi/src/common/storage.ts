@@ -44,6 +44,9 @@ export interface IConfigStorageRefer {
   'model.config': IProvider[];
   'mcp.config': IMcpServer[];
   'mcp.agentInstallStatus': Record<string, string[]>;
+  'cli.providers'?: CliProvidersStorage;
+  'skills.repos'?: SkillRepoConfig[];
+  'skills.enabledByAgent'?: Record<AcpBackend, string[]>;
   language: string;
   theme: string;
   colorScheme: string;
@@ -60,6 +63,26 @@ export interface IConfigStorageRefer {
   'guid.lastSelectedAgent'?: string;
   // 迁移标记：修复老版本中助手 enabled 默认值问题 / Migration flag: fix assistant enabled default value issue
   'migration.assistantEnabledFixed'?: boolean;
+}
+
+export type CliProviderTarget = 'claude' | 'codex' | 'gemini';
+
+export interface CliProviderConfig {
+  presetName?: string;
+  apiKey?: string;
+  baseUrl?: string;
+  model?: string;
+  templateValues?: Record<string, string>;
+}
+
+export type CliProvidersStorage = Record<CliProviderTarget, CliProviderConfig | undefined>;
+
+export interface SkillRepoConfig {
+  id: string;
+  url: string;
+  branch?: string;
+  subdir?: string;
+  lastSync?: number;
 }
 
 export interface IEnvStorageRefer {

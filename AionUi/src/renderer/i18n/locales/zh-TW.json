@@ -391,6 +391,7 @@
   },
   "settings": {
     "about": "關於",
+    "providers": "供應商",
     "assistants": "助理",
     "assistantsList": "可用助理清單",
     "assistantsEmpty": "目前沒有可用的助理。",
@@ -416,6 +417,7 @@
     "assistantModels": "可用模型",
     "assistantModelsHint": "選擇此助理可以使用的模型。",
     "assistantSkills": "技能",
+    "skills": "技能",
     "assistantSkillsHint": "",
     "assistantSkillsPlaceholder": "請輸入 Markdown 格式的技能...",
     "promptEdit": "編輯",

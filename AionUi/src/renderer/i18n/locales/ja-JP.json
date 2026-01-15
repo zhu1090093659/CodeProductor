@@ -420,6 +420,7 @@
   },
   "settings": {
     "about": "情報",
+    "providers": "プロバイダー",
     "assistants": "アシスタント",
     "assistantsList": "利用可能なアシスタント一覧",
     "assistantsEmpty": "利用可能なアシスタントがありません。",
@@ -445,6 +446,7 @@
     "assistantModels": "利用可能なモデル",
     "assistantModelsHint": "このアシスタントが使用できるモデルを選択してください。",
     "assistantSkills": "スキル",
+    "skills": "スキル",
     "assistantSkillsHint": "",
     "assistantSkillsPlaceholder": "Markdown 形式でスキルを入力...",
     "promptEdit": "編集",

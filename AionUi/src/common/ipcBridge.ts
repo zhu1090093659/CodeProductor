@@ -8,7 +8,8 @@ import { bridge } from '@office-ai/platform';
 import type { OpenDialogOptions } from 'electron';
 import type { McpSource } from '../process/services/mcpServices/McpProtocol';
 import type { AcpBackend } from '../types/acpTypes';
-import type { IMcpServer, IProvider, TChatConversation, TProviderWithModel } from './storage';
+import type { IMcpServer, IProvider, TChatConversation, TProviderWithModel, SkillRepoConfig } from './storage';
+import type { CliProviderApplyPayload } from './types/provider';
 import type { PreviewHistoryTarget, PreviewSnapshotInfo } from './types/preview';
 import type { ProtocolDetectionRequest, ProtocolDetectionResponse } from './utils/protocolDetector';
 
@@ -169,6 +170,14 @@ export const mcpService = {
   loginMcpOAuth: bridge.buildProvider<IBridgeResponse<{ success: boolean; error?: string }>, { server: IMcpServer; config?: any }>('mcp.login-oauth'),
   logoutMcpOAuth: bridge.buildProvider<IBridgeResponse, string>('mcp.logout-oauth'),
   getAuthenticatedServers: bridge.buildProvider<IBridgeResponse<string[]>, void>('mcp.get-authenticated-servers'),
+};
+
+export const provider = {
+  apply: bridge.buildProvider<IBridgeResponse, CliProviderApplyPayload>('provider.apply'),
+};
+
+export const skills = {
+  syncRepos: bridge.buildProvider<IBridgeResponse<{ repos: SkillRepoConfig[]; errors?: Array<{ id: string; error: string }> }>, { repos: SkillRepoConfig[] }>('skills.sync-repos'),
 };
 
 // Codex 对话相关接口 - 复用统一的conversation接口

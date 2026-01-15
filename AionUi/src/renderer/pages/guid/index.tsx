@@ -233,6 +233,7 @@ const Guid: React.FC = () => {
     }>
   >();
   const [customAgents, setCustomAgents] = useState<AcpBackendConfig[]>([]);
+  const [skillsEnabledByAgent, setSkillsEnabledByAgent] = useState<Record<string, string[]>>({});
 
   /**
    * 获取代理的唯一选择键
@@ -491,6 +492,22 @@ const Guid: React.FC = () => {
   }, [availableAgentsData]);
 
   useEffect(() => {
+    let isActive = true;
+    ConfigStorage.get('skills.enabledByAgent')
+      .then((data) => {
+        if (!isActive) return;
+        setSkillsEnabledByAgent(data || {});
+      })
+      .catch(() => {
+        if (!isActive) return;
+        setSkillsEnabledByAgent({});
+      });
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (mentionOpen) {
       setMentionActiveIndex(0);
       return;
@@ -612,11 +629,13 @@ const Guid: React.FC = () => {
   const resolveEnabledSkills = useCallback(
     (agentInfo: { backend: AcpBackend; customAgentId?: string } | undefined): string[] | undefined => {
       if (!agentInfo) return undefined;
-      if (agentInfo.backend !== 'custom') return undefined;
+      if (agentInfo.backend !== 'custom') {
+        return skillsEnabledByAgent[agentInfo.backend] || undefined;
+      }
       const customAgent = customAgents.find((agent) => agent.id === agentInfo.customAgentId);
       return customAgent?.enabledSkills;
     },
-    [customAgents]
+    [customAgents, skillsEnabledByAgent]
   );
 
   const refreshCustomAgents = useCallback(async () => {
@@ -679,7 +698,7 @@ const Guid: React.FC = () => {
             // Pass rules (skills loaded via SkillManager)
             presetRules: isPreset ? presetRules : undefined,
             // 启用的 skills 列表 / Enabled skills list
-            enabledSkills: isPreset ? enabledSkills : undefined,
+            enabledSkills: enabledSkills,
             // 预设助手 ID，用于在会话面板显示助手名称和头像
             // Preset assistant ID for displaying name and avatar in conversation panel
             presetAssistantId: isPreset ? agentInfo?.customAgentId : undefined,
@@ -744,7 +763,7 @@ const Guid: React.FC = () => {
             // Pass preset context (rules only)
             presetContext: isPreset ? presetRules : undefined,
             // 启用的 skills 列表（通过 SkillManager 加载）/ Enabled skills list (loaded via SkillManager)
-            enabledSkills: isPreset ? enabledSkills : undefined,
+            enabledSkills: enabledSkills,
             // 预设助手 ID，用于在会话面板显示助手名称和头像
             // Preset assistant ID for displaying name and avatar in conversation panel
             presetAssistantId: isPreset ? codexAgentInfo?.customAgentId : undefined,
@@ -810,7 +829,7 @@ const Guid: React.FC = () => {
             // Pass preset context (rules only)
             presetContext: isPreset ? presetRules : undefined,
             // 启用的 skills 列表（通过 SkillManager 加载）/ Enabled skills list (loaded via SkillManager)
-            enabledSkills: isPreset ? enabledSkills : undefined,
+            enabledSkills: enabledSkills,
             // 预设助手 ID，用于在会话面板显示助手名称和头像
             // Preset assistant ID for displaying name and avatar in conversation panel
             presetAssistantId: isPreset ? acpAgentInfo?.customAgentId : undefined,
