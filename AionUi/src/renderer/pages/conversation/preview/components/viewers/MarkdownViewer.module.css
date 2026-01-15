@@ -1,0 +1,115 @@
+.markdownPreview {
+  color: var(--color-text-1);
+  line-height: 1.7;
+  font-size: 14px;
+}
+
+.markdownPreview :global(h1),
+.markdownPreview :global(h2),
+.markdownPreview :global(h3),
+.markdownPreview :global(h4),
+.markdownPreview :global(h5),
+.markdownPreview :global(h6) {
+  color: var(--color-text-1);
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 20px 0 12px;
+}
+
+.markdownPreview :global(h1) {
+  font-size: 24px;
+  margin-top: 6px;
+}
+
+.markdownPreview :global(h2) {
+  font-size: 20px;
+}
+
+.markdownPreview :global(h3) {
+  font-size: 18px;
+}
+
+.markdownPreview :global(p) {
+  margin: 10px 0;
+  color: var(--color-text-2);
+}
+
+.markdownPreview :global(ul),
+.markdownPreview :global(ol) {
+  margin: 10px 0;
+  padding-left: 22px;
+}
+
+.markdownPreview :global(li) {
+  margin: 6px 0;
+}
+
+.markdownPreview :global(blockquote) {
+  margin: 12px 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--color-border-2);
+  background: var(--color-fill-2);
+  color: var(--color-text-2);
+}
+
+.markdownPreview :global(code) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--color-fill-2);
+  color: var(--color-text-1);
+}
+
+.markdownPreview :global(pre) {
+  margin: 12px 0;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--color-fill-2);
+}
+
+.markdownPreview :global(pre code) {
+  padding: 0;
+  background: transparent;
+}
+
+.markdownPreview :global(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 13px;
+}
+
+.markdownPreview :global(th),
+.markdownPreview :global(td) {
+  border: 1px solid var(--color-border-2);
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.markdownPreview :global(th) {
+  background: var(--color-fill-2);
+  font-weight: 600;
+  color: var(--color-text-1);
+}
+
+.markdownPreview :global(hr) {
+  border: none;
+  border-top: 1px solid var(--color-border-2);
+  margin: 16px 0;
+}
+
+.markdownPreview :global(a) {
+  color: rgb(var(--primary-6));
+  text-decoration: none;
+}
+
+.markdownPreview :global(a:hover) {
+  text-decoration: underline;
+}
+
+.markdownPreview :global(img) {
+  max-width: 100%;
+  border-radius: 8px;
+}

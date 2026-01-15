@@ -255,6 +255,7 @@ export interface ICreateConversationParams {
     workspace?: string;
     customWorkspace?: boolean;
     defaultFiles?: string[];
+    projectId?: string;
     backend?: AcpBackend;
     cliPath?: string;
     webSearchEngine?: 'google' | 'default';

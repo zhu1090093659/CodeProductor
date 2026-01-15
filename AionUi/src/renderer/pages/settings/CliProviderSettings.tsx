@@ -114,12 +114,13 @@ const CliProviderSettings: React.FC = () => {
 
   const handleApply = useCallback(
     async (target: CliProviderTarget) => {
+      const applyProvider = ipcBridge.provider.apply.invoke as (payload: unknown) => Promise<{ success: boolean; msg?: string }>;
       const config = configs[target] || {};
       if (target === 'claude') {
         const preset = CLAUDE_PROVIDER_PRESETS.find((p) => p.name === config.presetName);
         if (!preset) return;
         const env = buildClaudeEnv(preset, config);
-        const result = await ipcBridge.provider.apply.invoke({ target, env });
+        const result = await applyProvider({ target, env });
         if (result.success) {
           message.success('Claude Code settings updated');
         } else {
@@ -135,7 +136,7 @@ const CliProviderSettings: React.FC = () => {
           auth['OPENAI_API_KEY'] = config.apiKey;
         }
         const configToml = patchCodexConfig(preset.config, config.baseUrl, config.model);
-        const result = await ipcBridge.provider.apply.invoke({ target, auth, configToml });
+        const result = await applyProvider({ target, auth, configToml });
         if (result.success) {
           message.success('Codex settings updated');
         } else {
@@ -145,7 +146,7 @@ const CliProviderSettings: React.FC = () => {
       }
       if (target === 'gemini') {
         const env = buildGeminiEnv(config);
-        const result = await ipcBridge.provider.apply.invoke({ target, env });
+        const result = await applyProvider({ target, env });
         if (result.success) {
           message.success('Gemini settings updated');
         } else {

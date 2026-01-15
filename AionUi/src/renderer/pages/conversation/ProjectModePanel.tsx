@@ -5,13 +5,18 @@
  */
 
 import { ipcBridge } from '@/common';
+import type { ProjectInfo } from '@/common/storage';
 import { ConfigStorage } from '@/common/storage';
 import type { IDirOrFile } from '@/common/ipcBridge';
-import type { PreviewContentType } from '@/common/types/preview';
-import { usePreviewContext } from '@/renderer/pages/conversation/preview';
+import { emitter } from '@/renderer/utils/emitter';
+import { loadPreviewForFile } from '@/renderer/pages/conversation/workspace/utils/previewUtils';
 import { useConversationTabs } from '@/renderer/pages/conversation/context/ConversationTabsContext';
-import { Empty, Spin, Switch, Tree } from '@arco-design/web-react';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useProjects } from '@/renderer/hooks/useProjects';
+import { deleteProject, ensureProjectForWorkspace, renameProject, setActiveProjectId } from '@/renderer/utils/projectService';
+import { Empty, Input, Message, Modal, Popconfirm, Spin, Tree, Tooltip } from '@arco-design/web-react';
+import { DeleteOne, EditOne, Plus } from '@icon-park/react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface TreeNode {
   key: string;
@@ -20,19 +25,6 @@ interface TreeNode {
   children?: TreeNode[];
   data?: IDirOrFile;
 }
-
-const getContentType = (fileName: string): PreviewContentType => {
-  const ext = fileName.toLowerCase().split('.').pop() || '';
-  if (ext === 'md' || ext === 'markdown') return 'markdown';
-  if (ext === 'diff' || ext === 'patch') return 'diff';
-  if (ext === 'pdf') return 'pdf';
-  if (['ppt', 'pptx', 'odp'].includes(ext)) return 'ppt';
-  if (['doc', 'docx', 'odt'].includes(ext)) return 'word';
-  if (['xls', 'xlsx', 'ods', 'csv'].includes(ext)) return 'excel';
-  if (['html', 'htm'].includes(ext)) return 'html';
-  if (['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg', 'ico', 'tif', 'tiff', 'avif'].includes(ext)) return 'image';
-  return 'code';
-};
 
 const buildTreeNodes = (node: IDirOrFile): TreeNode => ({
   key: node.relativePath || node.fullPath || node.name,
@@ -43,19 +35,25 @@ const buildTreeNodes = (node: IDirOrFile): TreeNode => ({
 });
 
 const ProjectModePanel: React.FC = () => {
-  const { openPreview } = usePreviewContext();
+  const { t } = useTranslation();
   const { activeTab } = useConversationTabs();
-  const [enabled, setEnabled] = useState(false);
   const [loading, setLoading] = useState(false);
   const [treeData, setTreeData] = useState<TreeNode[]>([]);
   const [jiraStatus, setJiraStatus] = useState<'unknown' | 'ok' | 'error'>('unknown');
   const [mcpStatus, setMcpStatus] = useState<'unknown' | 'ok' | 'error'>('unknown');
+  const { projects, activeProjectId, activeProject } = useProjects();
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
+  const [editingProjectName, setEditingProjectName] = useState('');
+  const [messageApi, messageContext] = Message.useMessage();
 
   const workspace = activeTab?.workspace;
   const conversationId = activeTab?.id;
 
   const refreshTree = useCallback(async () => {
-    if (!workspace || !conversationId) return;
+    if (!workspace || !conversationId) {
+      setTreeData([]);
+      return;
+    }
     setLoading(true);
     try {
       const res = await ipcBridge.conversation.getWorkspace.invoke({ conversation_id: conversationId, workspace, path: workspace });
@@ -90,33 +88,24 @@ const ProjectModePanel: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!enabled) return;
     void refreshTree();
+  }, [refreshTree]);
+
+  useEffect(() => {
     void refreshStatus();
-  }, [enabled, refreshTree, refreshStatus]);
+  }, [refreshStatus]);
 
   const handleSelect = useCallback(
     async (_keys: string[], info: any) => {
       const node: TreeNode | undefined = info?.node;
       const nodeData = node?.data;
       if (!nodeData?.isFile || !nodeData.fullPath) return;
-      const contentType = getContentType(nodeData.name);
-      let content = '';
-      if (contentType === 'image') {
-        content = await ipcBridge.fs.getImageBase64.invoke({ path: nodeData.fullPath });
-      } else if (!['pdf', 'word', 'excel', 'ppt'].includes(contentType)) {
-        content = await ipcBridge.fs.readFile.invoke({ path: nodeData.fullPath });
-      }
-      openPreview(content, contentType, {
-        title: nodeData.name,
-        fileName: nodeData.name,
-        filePath: nodeData.fullPath,
-        workspace,
-        language: nodeData.name.split('.').pop(),
-        editable: contentType === 'markdown' || contentType === 'image' ? false : undefined,
-      });
+      if (!workspace) return;
+      const preview = await loadPreviewForFile(nodeData, workspace);
+      if (!preview) return;
+      emitter.emit('workspace.preview.open', preview);
     },
-    [openPreview, workspace]
+    [workspace]
   );
 
   const statusDot = useCallback((status: 'unknown' | 'ok' | 'error') => {
@@ -125,34 +114,163 @@ const ProjectModePanel: React.FC = () => {
     return 'bg-gray-400';
   }, []);
 
+  const handleCreateProject = useCallback(async () => {
+    const files = await ipcBridge.dialog.showOpen.invoke({ properties: ['openDirectory'] });
+    if (!files || files.length === 0 || !files[0]) return;
+    await ensureProjectForWorkspace(files[0]);
+  }, []);
+
+  const handleSelectProject = useCallback(
+    async (projectId: string) => {
+      const exists = projects.some((project) => project.id === projectId);
+      if (!exists) return;
+      await setActiveProjectId(projectId);
+    },
+    [projects]
+  );
+
+  const handleEditStart = useCallback((project: ProjectInfo) => {
+    setEditingProjectId(project.id);
+    setEditingProjectName(project.name);
+  }, []);
+
+  const handleEditSave = useCallback(async () => {
+    if (!editingProjectId || !editingProjectName.trim()) return;
+    const ok = await renameProject(editingProjectId, editingProjectName);
+    if (ok) {
+      setEditingProjectId(null);
+      setEditingProjectName('');
+    }
+  }, [editingProjectId, editingProjectName]);
+
+  const handleEditCancel = useCallback(() => {
+    setEditingProjectId(null);
+    setEditingProjectName('');
+  }, []);
+
+  const confirmDeleteProject = useCallback(
+    (project: ProjectInfo) => {
+      Modal.confirm({
+        title: t('project.deleteConfirmTitle', { defaultValue: '确认删除项目' }),
+        content: t('project.deleteConfirmContent', { defaultValue: '该操作将彻底删除项目、所有会话与本地文件夹，无法恢复。' }),
+        okText: t('common.confirm', { defaultValue: '确认' }),
+        cancelText: t('common.cancel', { defaultValue: '取消' }),
+        onOk: () => {
+          deleteProject(project.id).then((ok) => {
+            if (ok) {
+              messageApi.success(t('project.deleteSuccess', { defaultValue: 'Project deleted.' }));
+            } else {
+              messageApi.error(t('project.deleteFailed', { defaultValue: 'Failed to delete project.' }));
+            }
+          });
+        },
+      });
+    },
+    [messageApi, t]
+  );
+
   return (
     <div className='px-12px py-10px flex flex-col gap-12px'>
+      {messageContext}
       <div className='flex items-center justify-between'>
-        <span className='text-12px text-t-secondary'>Project Mode</span>
-        <Switch size='small' checked={enabled} onChange={setEnabled} />
+        <span className='text-12px text-t-secondary'>{t('project.title', { defaultValue: '项目' })}</span>
+        <Tooltip content={t('project.create', { defaultValue: 'New Project' })}>
+          <span className='flex items-center justify-center w-20px h-20px rounded-6px hover:bg-hover cursor-pointer' onClick={handleCreateProject}>
+            <Plus theme='outline' size='14' />
+          </span>
+        </Tooltip>
       </div>
-      {enabled && (
-        <>
-          <div className='flex items-center gap-12px text-12px text-t-secondary'>
-            <span className='flex items-center gap-6px'>
-              <span className={`inline-block size-6px rounded-full ${statusDot(jiraStatus)}`} />
-              JIRA
-            </span>
-            <span className='flex items-center gap-6px'>
-              <span className={`inline-block size-6px rounded-full ${statusDot(mcpStatus)}`} />
-              MCP
-            </span>
-          </div>
-          {loading ? (
-            <div className='flex items-center justify-center h-120px'>
-              <Spin loading />
-            </div>
-          ) : treeData.length === 0 ? (
-            <Empty description='.ai not found' />
-          ) : (
-            <Tree treeData={treeData} onSelect={handleSelect} blockNode />
-          )}
-        </>
+      {projects.length === 0 ? (
+        <div className='px-8px text-12px text-t-secondary'>{t('project.empty', { defaultValue: '暂无项目' })}</div>
+      ) : (
+        <div className='flex flex-col gap-6px'>
+          {projects.map((project) => {
+            const isEditing = editingProjectId === project.id;
+            const isActive = project.id === activeProjectId;
+            return (
+              <div
+                key={project.id}
+                className={`flex items-center gap-8px px-8px py-6px rounded-8px cursor-pointer group ${isActive ? 'bg-active' : 'hover:bg-hover'}`}
+                onClick={() => handleSelectProject(project.id)}
+              >
+                <div className='flex-1 min-w-0'>
+                  {isEditing ? (
+                    <Input
+                      size='mini'
+                      value={editingProjectName}
+                      onChange={setEditingProjectName}
+                      onBlur={() => {
+                        void handleEditSave();
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          void handleEditSave();
+                        } else if (event.key === 'Escape') {
+                          handleEditCancel();
+                        }
+                      }}
+                      autoFocus
+                    />
+                  ) : (
+                    <Tooltip content={project.workspace} position='right'>
+                      <div className='text-12px text-t-primary truncate'>{project.name}</div>
+                    </Tooltip>
+                  )}
+                </div>
+                {!isEditing && (
+                  <div
+                    className='flex items-center gap-6px opacity-0 group-hover:opacity-100 transition-opacity'
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <span
+                      className='flex items-center justify-center'
+                      onClick={() => {
+                        handleEditStart(project);
+                      }}
+                    >
+                      <EditOne theme='outline' size='14' />
+                    </span>
+                    <Popconfirm
+                      title={t('project.deleteTitle', { defaultValue: 'Delete project' })}
+                      content={t('project.deleteConfirm', { defaultValue: 'This will remove all files, conversations, and the local folder.' })}
+                      onOk={() => confirmDeleteProject(project)}
+                    >
+                      <span className='flex items-center justify-center'>
+                        <DeleteOne theme='outline' size='14' />
+                      </span>
+                    </Popconfirm>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <div className='flex items-center gap-12px text-12px text-t-secondary'>
+        <span className='flex items-center gap-6px'>
+          <span className={`inline-block size-6px rounded-full ${statusDot(jiraStatus)}`} />
+          JIRA
+        </span>
+        <span className='flex items-center gap-6px'>
+          <span className={`inline-block size-6px rounded-full ${statusDot(mcpStatus)}`} />
+          MCP
+        </span>
+      </div>
+      {activeProject && (
+        <div className='text-11px text-t-tertiary truncate' title={activeProject.workspace}>
+          {activeProject.workspace}
+        </div>
+      )}
+      {loading ? (
+        <div className='flex items-center justify-center h-120px'>
+          <Spin loading />
+        </div>
+      ) : !workspace || !conversationId ? (
+        <Empty description={t('project.selectConversation', { defaultValue: '请选择对话查看文件' })} />
+      ) : treeData.length === 0 ? (
+        <Empty description={t('project.aiNotFound', { defaultValue: '未找到 .ai' })} />
+      ) : (
+        <Tree treeData={treeData} onSelect={handleSelect} blockNode />
       )}
     </div>
   );

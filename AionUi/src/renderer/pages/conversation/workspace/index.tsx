@@ -11,7 +11,7 @@ import FlexFullContainer from '@/renderer/components/FlexFullContainer';
 import useDebounce from '@/renderer/hooks/useDebounce';
 import { usePreviewContext } from '@/renderer/pages/conversation/preview';
 import { iconColors } from '@/renderer/theme/colors';
-import { emitter } from '@/renderer/utils/emitter';
+import { addEventListener, emitter } from '@/renderer/utils/emitter';
 import { isElectronDesktop } from '@/renderer/utils/platform';
 import { isTemporaryWorkspace as checkIsTemporaryWorkspace, getWorkspaceDisplayName as getDisplayName } from '@/renderer/utils/workspace';
 import { Checkbox, Empty, Input, Message, Modal, Tooltip, Tree } from '@arco-design/web-react';
@@ -30,6 +30,16 @@ import { useWorkspaceTree } from './hooks/useWorkspaceTree';
 import { useWorkspaceDragImport } from './hooks/useWorkspaceDragImport';
 import type { WorkspaceProps } from './types';
 import { extractNodeData, extractNodeKey, findNodeByKey, getTargetFolderPath } from './utils/treeHelpers';
+import { getPreviewContentType, loadPreviewForFile, type PreviewLoadResult } from './utils/previewUtils';
+import MarkdownPreview from '@/renderer/pages/conversation/preview/components/viewers/MarkdownViewer';
+import CodePreview from '@/renderer/pages/conversation/preview/components/viewers/CodeViewer';
+import DiffPreview from '@/renderer/pages/conversation/preview/components/viewers/DiffViewer';
+import PDFPreview from '@/renderer/pages/conversation/preview/components/viewers/PDFViewer';
+import PPTPreview from '@/renderer/pages/conversation/preview/components/viewers/PPTViewer';
+import WordPreview from '@/renderer/pages/conversation/preview/components/viewers/WordViewer';
+import ExcelPreview from '@/renderer/pages/conversation/preview/components/viewers/ExcelViewer';
+import ImagePreview from '@/renderer/pages/conversation/preview/components/viewers/ImageViewer';
+import HTMLPreview from '@/renderer/pages/conversation/preview/components/viewers/HTMLViewer';
 
 const ChangeWorkspaceIcon: React.FC<React.SVGProps<SVGSVGElement>> = ({ className, ...rest }) => {
   const clipPathId = useId();
@@ -69,6 +79,9 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({ conversation_id, workspace, e
   const [showDirectorySelector, setShowDirectorySelector] = useState(false);
   const [selectedTargetPath, setSelectedTargetPath] = useState('');
   const [migrationLoading, setMigrationLoading] = useState(false);
+  const [workspacePreview, setWorkspacePreview] = useState<PreviewLoadResult | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   // Workspace tree collapse state - 全局统一的折叠状态
   // 切换会话时保持折叠状态不变，只更新工作目录内容
@@ -181,6 +194,44 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({ conversation_id, workspace, e
     closeRenameModal: modalsHook.closeRenameModal,
     closeDeleteModal: modalsHook.closeDeleteModal,
   });
+
+  useEffect(() => {
+    setWorkspacePreview(null);
+    setPreviewError(null);
+  }, [workspace, conversation_id]);
+
+  const handlePreviewInWorkspace = useCallback(
+    async (nodeData: IDirOrFile | null) => {
+      if (!nodeData?.isFile) return;
+      setPreviewLoading(true);
+      setPreviewError(null);
+      try {
+        const preview = await loadPreviewForFile(nodeData, workspace);
+        if (preview) {
+          setWorkspacePreview(preview);
+        }
+      } catch (error) {
+        console.error('[WorkspacePreview] Failed to load preview:', error);
+        setPreviewError(t('conversation.workspace.previewFailed', { defaultValue: 'Failed to preview file.' }));
+      } finally {
+        setPreviewLoading(false);
+      }
+    },
+    [workspace, t]
+  );
+
+  useEffect(() => {
+    return addEventListener('workspace.preview.open', (payload) => {
+      if (payload?.metadata?.workspace && payload.metadata.workspace !== workspace) return;
+      setPreviewError(null);
+      setPreviewLoading(false);
+      setWorkspacePreview({
+        content: payload.content,
+        contentType: payload.contentType,
+        metadata: payload.metadata ?? undefined,
+      });
+    });
+  }, [workspace]);
 
   // Debounced search handler
   const onSearch = useDebounce(
@@ -367,75 +418,40 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({ conversation_id, workspace, e
   const isContextMenuNodeFile = !!contextMenuNode?.isFile;
   const isContextMenuNodeRoot = !!contextMenuNode && (!contextMenuNode.relativePath || contextMenuNode.relativePath === '');
 
-  // Check if file supports preview
-  const isPreviewSupported = (() => {
-    if (!contextMenuNode?.isFile || !contextMenuNode.name) return false;
-    const ext = contextMenuNode.name.toLowerCase().split('.').pop() || '';
-    const supportedExts = [
-      // Markdown formats
-      'md',
-      'markdown',
-      // Diff formats
-      'diff',
-      'patch',
-      // PDF format
-      'pdf',
-      // PPT formats
-      'ppt',
-      'pptx',
-      'odp',
-      // Word formats
-      'doc',
-      'docx',
-      'odt',
-      // Excel formats
-      'xls',
-      'xlsx',
-      'ods',
-      'csv',
-      // HTML formats
-      'html',
-      'htm',
-      // Code formats
-      'js',
-      'ts',
-      'tsx',
-      'jsx',
-      'py',
-      'java',
-      'go',
-      'rs',
-      'c',
-      'cpp',
-      'h',
-      'hpp',
-      'css',
-      'scss',
-      'json',
-      'xml',
-      'yaml',
-      'yml',
-      // Image formats
-      'png',
-      'jpg',
-      'jpeg',
-      'gif',
-      'bmp',
-      'webp',
-      'svg',
-      'ico',
-      'tif',
-      'tiff',
-      'avif',
-    ];
-    return supportedExts.includes(ext);
-  })();
+  // Check if file supports preview (single source of truth)
+  const isPreviewSupported = Boolean(contextMenuNode?.isFile && contextMenuNode.name && getPreviewContentType(contextMenuNode.name));
 
   const menuButtonBase = 'w-full flex items-center gap-8px px-14px py-6px text-13px text-left text-t-primary rounded-md transition-colors duration-150 hover:bg-2 border-none bg-transparent appearance-none focus:outline-none focus-visible:outline-none';
   const menuButtonDisabled = 'opacity-40 cursor-not-allowed hover:bg-transparent';
 
   // Get target folder path for paste confirm modal
   const targetFolderPathForModal = getTargetFolderPath(treeHook.selectedNodeRef.current, treeHook.selected, treeHook.files, workspace);
+
+  const renderWorkspacePreview = () => {
+    if (previewLoading) {
+      return <div className='flex items-center justify-center h-full text-12px text-t-secondary'>{t('common.loading', { defaultValue: 'Loading...' })}</div>;
+    }
+    if (previewError) {
+      return <div className='flex items-center justify-center h-full text-12px text-t-secondary'>{previewError}</div>;
+    }
+    if (!workspacePreview) {
+      return <Empty description={t('conversation.workspace.previewEmpty', { defaultValue: '请选择文件预览' })} />;
+    }
+
+    const { content, contentType, metadata } = workspacePreview;
+    const renderers: Record<string, () => JSX.Element> = {
+      markdown: () => <MarkdownPreview content={content} hideToolbar filePath={metadata?.filePath} />,
+      diff: () => <DiffPreview content={content} metadata={metadata} hideToolbar />,
+      code: () => <CodePreview content={content} language={metadata?.language} hideToolbar viewMode='preview' />,
+      pdf: () => <PDFPreview filePath={metadata?.filePath} content={content} hideToolbar />,
+      ppt: () => <PPTPreview filePath={metadata?.filePath} content={content} />,
+      word: () => <WordPreview filePath={metadata?.filePath} content={content} hideToolbar />,
+      excel: () => <ExcelPreview filePath={metadata?.filePath} content={content} hideToolbar />,
+      image: () => <ImagePreview filePath={metadata?.filePath} content={content} fileName={metadata?.fileName || metadata?.title} />,
+      html: () => <HTMLPreview content={content} filePath={metadata?.filePath} hideToolbar />,
+    };
+    return renderers[contentType]?.() || <Empty description={t('conversation.workspace.previewEmpty', { defaultValue: '请选择文件预览' })} />;
+  };
 
   return (
     <>
@@ -736,213 +752,223 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({ conversation_id, workspace, e
 
         {/* Main content area */}
         {!isWorkspaceCollapsed && (
-          <FlexFullContainer containerClassName='overflow-y-auto'>
-            {/* Context Menu */}
-            {modalsHook.contextMenu.visible && contextMenuNode && contextMenuStyle && (
-              <div
-                className='fixed z-100 min-w-200px max-w-240px rounded-12px bg-base/95 shadow-[0_12px_40px_rgba(15,23,42,0.16)] backdrop-blur-sm p-6px'
-                style={{ top: contextMenuStyle.top, left: contextMenuStyle.left }}
-                onClick={(event) => event.stopPropagation()}
-                onContextMenu={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                }}
-              >
-                <div className='flex flex-col gap-4px'>
-                  <button
-                    type='button'
-                    className={menuButtonBase}
-                    onClick={() => {
-                      fileOpsHook.handleAddToChat(contextMenuNode);
+          <div className='flex h-full min-h-0'>
+            <div className='flex-1 min-w-0'>
+              <FlexFullContainer containerClassName='overflow-y-auto'>
+                {/* Context Menu */}
+                {modalsHook.contextMenu.visible && contextMenuNode && contextMenuStyle && (
+                  <div
+                    className='fixed z-100 min-w-200px max-w-240px rounded-12px bg-base/95 shadow-[0_12px_40px_rgba(15,23,42,0.16)] backdrop-blur-sm p-6px'
+                    style={{ top: contextMenuStyle.top, left: contextMenuStyle.left }}
+                    onClick={(event) => event.stopPropagation()}
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
                     }}
                   >
-                    {t('conversation.workspace.contextMenu.addToChat')}
-                  </button>
-                  <button
-                    type='button'
-                    className={menuButtonBase}
-                    onClick={() => {
-                      void fileOpsHook.handleOpenNode(contextMenuNode);
-                      modalsHook.closeContextMenu();
-                    }}
-                  >
-                    {t('conversation.workspace.contextMenu.open')}
-                  </button>
-                  {isContextMenuNodeFile && (
-                    <button
-                      type='button'
-                      className={menuButtonBase}
-                      onClick={() => {
-                        void fileOpsHook.handleRevealNode(contextMenuNode);
-                        modalsHook.closeContextMenu();
-                      }}
-                    >
-                      {t('conversation.workspace.contextMenu.openLocation')}
-                    </button>
-                  )}
-                  {isContextMenuNodeFile && isPreviewSupported && (
-                    <button
-                      type='button'
-                      className={menuButtonBase}
-                      onClick={() => {
-                        void fileOpsHook.handlePreviewFile(contextMenuNode);
-                      }}
-                    >
-                      {t('conversation.workspace.contextMenu.preview')}
-                    </button>
-                  )}
-                  <div className='h-1px bg-3 my-2px'></div>
-                  <button
-                    type='button'
-                    className={`${menuButtonBase} ${isContextMenuNodeRoot ? menuButtonDisabled : ''}`.trim()}
-                    disabled={isContextMenuNodeRoot}
-                    onClick={() => {
-                      fileOpsHook.handleDeleteNode(contextMenuNode);
-                    }}
-                  >
-                    {t('common.delete')}
-                  </button>
-                  <button
-                    type='button'
-                    className={`${menuButtonBase} ${isContextMenuNodeRoot ? menuButtonDisabled : ''}`.trim()}
-                    disabled={isContextMenuNodeRoot}
-                    onClick={() => {
-                      fileOpsHook.openRenameModal(contextMenuNode);
-                    }}
-                  >
-                    {t('conversation.workspace.contextMenu.rename')}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Empty state or Tree */}
-            {!hasOriginalFiles ? (
-              <div className=' flex-1 size-full flex items-center justify-center px-12px box-border'>
-                <Empty
-                  description={
-                    <div>
-                      <span className='text-t-secondary font-bold text-14px'>{searchText ? t('conversation.workspace.search.empty') : t('conversation.workspace.empty')}</span>
-                      <div className='text-t-secondary'>{searchText ? '' : t('conversation.workspace.emptyDescription')}</div>
+                    <div className='flex flex-col gap-4px'>
+                      <button
+                        type='button'
+                        className={menuButtonBase}
+                        onClick={() => {
+                          fileOpsHook.handleAddToChat(contextMenuNode);
+                        }}
+                      >
+                        {t('conversation.workspace.contextMenu.addToChat')}
+                      </button>
+                      <button
+                        type='button'
+                        className={menuButtonBase}
+                        onClick={() => {
+                          void fileOpsHook.handleOpenNode(contextMenuNode);
+                          modalsHook.closeContextMenu();
+                        }}
+                      >
+                        {t('conversation.workspace.contextMenu.open')}
+                      </button>
+                      {isContextMenuNodeFile && (
+                        <button
+                          type='button'
+                          className={menuButtonBase}
+                          onClick={() => {
+                            void fileOpsHook.handleRevealNode(contextMenuNode);
+                            modalsHook.closeContextMenu();
+                          }}
+                        >
+                          {t('conversation.workspace.contextMenu.openLocation')}
+                        </button>
+                      )}
+                      {isContextMenuNodeFile && isPreviewSupported && (
+                        <button
+                          type='button'
+                          className={menuButtonBase}
+                          onClick={() => {
+                            void fileOpsHook.handlePreviewFile(contextMenuNode);
+                          }}
+                        >
+                          {t('conversation.workspace.contextMenu.preview')}
+                        </button>
+                      )}
+                      <div className='h-1px bg-3 my-2px'></div>
+                      <button
+                        type='button'
+                        className={`${menuButtonBase} ${isContextMenuNodeRoot ? menuButtonDisabled : ''}`.trim()}
+                        disabled={isContextMenuNodeRoot}
+                        onClick={() => {
+                          fileOpsHook.handleDeleteNode(contextMenuNode);
+                        }}
+                      >
+                        {t('common.delete')}
+                      </button>
+                      <button
+                        type='button'
+                        className={`${menuButtonBase} ${isContextMenuNodeRoot ? menuButtonDisabled : ''}`.trim()}
+                        disabled={isContextMenuNodeRoot}
+                        onClick={() => {
+                          fileOpsHook.openRenameModal(contextMenuNode);
+                        }}
+                      >
+                        {t('conversation.workspace.contextMenu.rename')}
+                      </button>
                     </div>
-                  }
-                />
-              </div>
-            ) : (
-              <Tree
-                className={'!pl-32px !pr-16px workspace-tree'}
-                showLine
-                key={treeHook.treeKey}
-                selectedKeys={treeHook.selected}
-                expandedKeys={treeHook.expandedKeys}
-                treeData={treeData}
-                fieldNames={{
-                  children: 'children',
-                  title: 'name',
-                  key: 'relativePath',
-                  isLeaf: 'isFile',
-                }}
-                multiple
-                renderTitle={(node) => {
-                  const relativePath = node.dataRef.relativePath;
-                  const isFile = node.dataRef.isFile;
-                  const isPasteTarget = !isFile && pasteHook.pasteTargetFolder === relativePath;
+                  </div>
+                )}
 
-                  return (
-                    <span
-                      className='flex items-center gap-4px'
-                      style={{ color: 'inherit' }}
-                      onDoubleClick={() => {
-                        if (isFile) {
-                          fileOpsHook.handleAddToChat(node.dataRef as IDirOrFile);
+                {/* Empty state or Tree */}
+                {!hasOriginalFiles ? (
+                  <div className=' flex-1 size-full flex items-center justify-center px-12px box-border'>
+                    <Empty
+                      description={
+                        <div>
+                          <span className='text-t-secondary font-bold text-14px'>{searchText ? t('conversation.workspace.search.empty') : t('conversation.workspace.empty')}</span>
+                          <div className='text-t-secondary'>{searchText ? '' : t('conversation.workspace.emptyDescription')}</div>
+                        </div>
+                      }
+                    />
+                  </div>
+                ) : (
+                  <Tree
+                    className={'!pl-32px !pr-16px workspace-tree'}
+                    showLine
+                    key={treeHook.treeKey}
+                    selectedKeys={treeHook.selected}
+                    expandedKeys={treeHook.expandedKeys}
+                    treeData={treeData}
+                    fieldNames={{
+                      children: 'children',
+                      title: 'name',
+                      key: 'relativePath',
+                      isLeaf: 'isFile',
+                    }}
+                    multiple
+                    renderTitle={(node) => {
+                      const relativePath = node.dataRef.relativePath;
+                      const isFile = node.dataRef.isFile;
+                      const isPasteTarget = !isFile && pasteHook.pasteTargetFolder === relativePath;
+
+                      return (
+                        <span
+                          className='flex items-center gap-4px'
+                          style={{ color: 'inherit' }}
+                          onDoubleClick={() => {
+                            if (isFile) {
+                              fileOpsHook.handleAddToChat(node.dataRef as IDirOrFile);
+                            }
+                          }}
+                          onContextMenu={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            treeHook.ensureNodeSelected(node.dataRef as IDirOrFile);
+                            modalsHook.setContextMenu({
+                              visible: true,
+                              x: event.clientX,
+                              y: event.clientY,
+                              node: node.dataRef as IDirOrFile,
+                            });
+                          }}
+                        >
+                          {node.title}
+                          {isPasteTarget && <span className='ml-1 text-xs text-blue-700 font-bold bg-blue-500 text-white px-1.5 py-0.5 rounded'>PASTE</span>}
+                        </span>
+                      );
+                    }}
+                    onSelect={(keys, extra) => {
+                      const clickedKey = extractNodeKey(extra?.node);
+                      const nodeData = extra && extra.node ? extractNodeData(extra.node) : null;
+                      const isFileNode = Boolean(nodeData?.isFile);
+                      const wasSelected = clickedKey ? treeHook.selectedKeysRef.current.includes(clickedKey) : false;
+
+                      if (isFileNode) {
+                        // 单击文件仅打开预览，不改变选中状态 / Single-click file only opens preview without changing selection state
+                        if (clickedKey) {
+                          const filteredKeys = treeHook.selectedKeysRef.current.filter((key) => key !== clickedKey);
+                          treeHook.selectedKeysRef.current = filteredKeys;
+                          treeHook.setSelected(filteredKeys);
                         }
-                      }}
-                      onContextMenu={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        treeHook.ensureNodeSelected(node.dataRef as IDirOrFile);
-                        modalsHook.setContextMenu({
-                          visible: true,
-                          x: event.clientX,
-                          y: event.clientY,
-                          node: node.dataRef as IDirOrFile,
-                        });
-                      }}
-                    >
-                      {node.title}
-                      {isPasteTarget && <span className='ml-1 text-xs text-blue-700 font-bold bg-blue-500 text-white px-1.5 py-0.5 rounded'>PASTE</span>}
-                    </span>
-                  );
-                }}
-                onSelect={(keys, extra) => {
-                  const clickedKey = extractNodeKey(extra?.node);
-                  const nodeData = extra && extra.node ? extractNodeData(extra.node) : null;
-                  const isFileNode = Boolean(nodeData?.isFile);
-                  const wasSelected = clickedKey ? treeHook.selectedKeysRef.current.includes(clickedKey) : false;
+                        treeHook.selectedNodeRef.current = null;
+                        if (nodeData && clickedKey && !wasSelected) {
+                          void handlePreviewInWorkspace(nodeData);
+                        }
+                        return;
+                      }
 
-                  if (isFileNode) {
-                    // 单击文件仅打开预览，不改变选中状态 / Single-click file only opens preview without changing selection state
-                    if (clickedKey) {
-                      const filteredKeys = treeHook.selectedKeysRef.current.filter((key) => key !== clickedKey);
-                      treeHook.selectedKeysRef.current = filteredKeys;
-                      treeHook.setSelected(filteredKeys);
-                    }
-                    treeHook.selectedNodeRef.current = null;
-                    if (nodeData && clickedKey && !wasSelected) {
-                      void fileOpsHook.handlePreviewFile(nodeData);
-                    }
-                    return;
-                  }
+                      // 目录节点仍保留原有选中逻辑 / Keep existing selection logic for folders
+                      let newKeys: string[];
 
-                  // 目录节点仍保留原有选中逻辑 / Keep existing selection logic for folders
-                  let newKeys: string[];
+                      if (clickedKey && wasSelected) {
+                        newKeys = treeHook.selectedKeysRef.current.filter((key) => key !== clickedKey);
+                      } else if (clickedKey) {
+                        newKeys = [...treeHook.selectedKeysRef.current, clickedKey];
+                      } else {
+                        newKeys = keys.filter((key) => key !== workspace);
+                      }
 
-                  if (clickedKey && wasSelected) {
-                    newKeys = treeHook.selectedKeysRef.current.filter((key) => key !== clickedKey);
-                  } else if (clickedKey) {
-                    newKeys = [...treeHook.selectedKeysRef.current, clickedKey];
-                  } else {
-                    newKeys = keys.filter((key) => key !== workspace);
-                  }
+                      treeHook.setSelected(newKeys);
+                      treeHook.selectedKeysRef.current = newKeys;
 
-                  treeHook.setSelected(newKeys);
-                  treeHook.selectedKeysRef.current = newKeys;
+                      if (extra && extra.node && nodeData && nodeData.fullPath && nodeData.relativePath != null) {
+                        treeHook.selectedNodeRef.current = {
+                          relativePath: nodeData.relativePath,
+                          fullPath: nodeData.fullPath,
+                        };
+                      } else {
+                        treeHook.selectedNodeRef.current = null;
+                      }
 
-                  if (extra && extra.node && nodeData && nodeData.fullPath && nodeData.relativePath != null) {
-                    treeHook.selectedNodeRef.current = {
-                      relativePath: nodeData.relativePath,
-                      fullPath: nodeData.fullPath,
-                    };
-                  } else {
-                    treeHook.selectedNodeRef.current = null;
-                  }
-
-                  const items: Array<{ path: string; name: string; isFile: boolean }> = [];
-                  for (const k of newKeys) {
-                    const node = findNodeByKey(treeHook.files, k);
-                    if (node && node.fullPath) {
-                      items.push({
-                        path: node.fullPath,
-                        name: node.name,
-                        isFile: node.isFile,
+                      const items: Array<{ path: string; name: string; isFile: boolean }> = [];
+                      for (const k of newKeys) {
+                        const node = findNodeByKey(treeHook.files, k);
+                        if (node && node.fullPath) {
+                          items.push({
+                            path: node.fullPath,
+                            name: node.name,
+                            isFile: node.isFile,
+                          });
+                        }
+                      }
+                      emitter.emit(`${eventPrefix}.selected.file`, items);
+                    }}
+                    onExpand={(keys) => {
+                      treeHook.setExpandedKeys(keys);
+                    }}
+                    loadMore={(treeNode) => {
+                      const path = treeNode.props.dataRef.fullPath;
+                      return ipcBridge.conversation.getWorkspace.invoke({ conversation_id, workspace, path }).then((res) => {
+                        treeNode.props.dataRef.children = res[0].children;
+                        treeHook.setFiles([...treeHook.files]);
                       });
-                    }
-                  }
-                  emitter.emit(`${eventPrefix}.selected.file`, items);
-                }}
-                onExpand={(keys) => {
-                  treeHook.setExpandedKeys(keys);
-                }}
-                loadMore={(treeNode) => {
-                  const path = treeNode.props.dataRef.fullPath;
-                  return ipcBridge.conversation.getWorkspace.invoke({ conversation_id, workspace, path }).then((res) => {
-                    treeNode.props.dataRef.children = res[0].children;
-                    treeHook.setFiles([...treeHook.files]);
-                  });
-                }}
-              ></Tree>
-            )}
-          </FlexFullContainer>
+                    }}
+                  ></Tree>
+                )}
+              </FlexFullContainer>
+            </div>
+            <div className='flex-1 min-w-0 border-l border-b-base flex flex-col'>
+              <div className='h-32px px-12px flex items-center bg-bg-2 text-12px text-t-secondary border-b border-b-base'>
+                {workspacePreview?.metadata?.fileName || t('conversation.workspace.previewTitle', { defaultValue: 'Preview' })}
+              </div>
+              <div className='flex-1 min-h-0'>{renderWorkspacePreview()}</div>
+            </div>
+          </div>
         )}
       </div>
     </>

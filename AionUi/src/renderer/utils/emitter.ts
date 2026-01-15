@@ -9,6 +9,7 @@ import type { DependencyList } from 'react';
 import { useEffect } from 'react';
 import type { FileOrFolderItem } from '@/renderer/types/files';
 import type { PreviewContentType } from '@/common/types/preview';
+import type { PreviewMetadata } from '@/renderer/pages/conversation/preview/context/PreviewContext';
 
 interface EventTypes {
   'gemini.selected.file': [Array<string | FileOrFolderItem>];
@@ -26,8 +27,12 @@ interface EventTypes {
   'chat.history.refresh': void;
   // 会话删除事件 / Conversation deletion event
   'conversation.deleted': [string]; // conversationId
+  // Project events
+  'project.updated': void;
   // 预览面板事件 / Preview panel events
   'preview.open': [{ content: string; contentType: PreviewContentType; metadata?: { title?: string; fileName?: string } }];
+  // 工作区预览事件 / Workspace preview events
+  'workspace.preview.open': [{ content: string; contentType: PreviewContentType; metadata?: PreviewMetadata }];
 }
 
 export const emitter = new EventEmitter<EventTypes>();

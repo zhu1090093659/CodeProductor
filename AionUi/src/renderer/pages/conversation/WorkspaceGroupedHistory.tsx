@@ -11,6 +11,8 @@ import { addEventListener, emitter } from '@/renderer/utils/emitter';
 import { getActivityTime, getTimelineLabel } from '@/renderer/utils/timeline';
 import { getWorkspaceDisplayName } from '@/renderer/utils/workspace';
 import { getWorkspaceUpdateTime } from '@/renderer/utils/workspaceHistory';
+import { useProjects } from '@/renderer/hooks/useProjects';
+import { resolveProjectIdForConversation, setActiveProjectId } from '@/renderer/utils/projectService';
 import { Empty, Popconfirm, Input, Tooltip } from '@arco-design/web-react';
 import { DeleteOne, MessageOne, EditOne } from '@icon-park/react';
 import classNames from 'classnames';
@@ -163,6 +165,7 @@ const WorkspaceGroupedHistory: React.FC<{ onSessionClick?: () => void; collapsed
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState<string>('');
+  const { projects, activeProjectId } = useProjects();
   const { id } = useParams();
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -200,8 +203,11 @@ const WorkspaceGroupedHistory: React.FC<{ onSessionClick?: () => void; collapsed
 
   // 按时间线和workspace分组
   const timelineSections = useMemo(() => {
-    return groupConversationsByTimelineAndWorkspace(conversations, t);
-  }, [conversations, t]);
+    const filtered = activeProjectId
+      ? conversations.filter((conv) => resolveProjectIdForConversation(conv, projects) === activeProjectId)
+      : conversations;
+    return groupConversationsByTimelineAndWorkspace(filtered, t);
+  }, [conversations, t, activeProjectId, projects]);
 
   // 默认展开所有 workspace（仅在还未记录展开状态时执行一次）
   useEffect(() => {
@@ -221,6 +227,10 @@ const WorkspaceGroupedHistory: React.FC<{ onSessionClick?: () => void; collapsed
 
   const handleConversationClick = useCallback(
     (conv: TChatConversation) => {
+      const projectId = resolveProjectIdForConversation(conv, projects);
+      if (projectId) {
+        void setActiveProjectId(projectId);
+      }
       const customWorkspace = conv.extra?.customWorkspace;
       const newWorkspace = conv.extra?.workspace;
 
@@ -250,7 +260,7 @@ const WorkspaceGroupedHistory: React.FC<{ onSessionClick?: () => void; collapsed
         onSessionClick();
       }
     },
-    [openTab, closeAllTabs, activeTab, navigate, onSessionClick]
+    [openTab, closeAllTabs, activeTab, navigate, onSessionClick, projects]
   );
 
   // 切换 workspace 展开/收起状态
@@ -399,9 +409,7 @@ const WorkspaceGroupedHistory: React.FC<{ onSessionClick?: () => void; collapsed
   if (timelineSections.length === 0) {
     return (
       <FlexFullContainer>
-        <div className='flex-center'>
-          <Empty description={t('conversation.history.noHistory')} />
-        </div>
+        <div className='flex-center text-12px text-t-secondary'>{t('conversation.history.noHistory')}</div>
       </FlexFullContainer>
     );
   }

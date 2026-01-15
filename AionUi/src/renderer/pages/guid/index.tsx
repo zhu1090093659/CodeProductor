@@ -6,10 +6,12 @@
 
 import { ipcBridge } from '@/common';
 import { ASSISTANT_PRESETS } from '@/common/presets/assistantPresets';
-import type { IProvider, TProviderWithModel } from '@/common/storage';
+import type { IProvider, ProjectInfo, TProviderWithModel } from '@/common/storage';
 import { ConfigStorage } from '@/common/storage';
 import { uuid, resolveLocaleKey } from '@/common/utils';
+import { useProjects } from '@/renderer/hooks/useProjects';
 import { useConversationTabs } from '@/renderer/pages/conversation/context/ConversationTabsContext';
+import { ensureProjectForWorkspace } from '@/renderer/utils/projectService';
 import { updateWorkspaceTime } from '@/renderer/utils/workspaceHistory';
 import AuggieLogo from '@/renderer/assets/logos/auggie.svg';
 import ClaudeLogo from '@/renderer/assets/logos/claude.svg';
@@ -166,6 +168,9 @@ const Guid: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [files, setFiles] = useState<string[]>([]);
   const [dir, setDir] = useState<string>('');
+  const { activeProject } = useProjects();
+  const dirRef = useRef('');
+  const lastProjectWorkspaceRef = useRef<string | null>(null);
   const [currentModel, _setCurrentModel] = useState<TProviderWithModel>();
   const [isInputFocused, setIsInputFocused] = useState(false);
   const isInputActive = isInputFocused;
@@ -180,11 +185,27 @@ const Guid: React.FC = () => {
     [activeBorderColor, activeShadow, inactiveBorderColor]
   );
 
+  useEffect(() => {
+    dirRef.current = dir;
+  }, [dir]);
+
+  useEffect(() => {
+    if (!activeProject?.workspace) return;
+    const currentDir = dirRef.current;
+    if (!currentDir || currentDir === lastProjectWorkspaceRef.current) {
+      setDir(activeProject.workspace);
+    }
+    lastProjectWorkspaceRef.current = activeProject.workspace;
+  }, [activeProject?.workspace]);
+
   // 从 location.state 中读取 workspace（从 tabs 的添加按钮传递）
   useEffect(() => {
     const state = location.state as { workspace?: string } | null;
     if (state?.workspace) {
-      setDir(state.workspace);
+      void ensureProjectForWorkspace(state.workspace).then((project) => {
+        setDir(project.workspace);
+        lastProjectWorkspaceRef.current = project.workspace;
+      });
     }
   }, [location.state]);
   const { modelList, isGoogleAuth, geminiModeOptions } = useModelList();
@@ -670,8 +691,21 @@ const Guid: React.FC = () => {
   const handleSend = async () => {
     // 用户明确选择的目录 -> customWorkspace = true, 使用用户选择的目录
     // 未选择时 -> customWorkspace = false, 传空让后端创建临时目录 (gemini-temp-xxx)
-    const isCustomWorkspace = !!dir;
-    const finalWorkspace = dir || ''; // 不指定时传空，让后端创建临时目录
+    let isCustomWorkspace = !!dir;
+    let finalWorkspace = dir || ''; // 不指定时传空，让后端创建临时目录
+    let project: ProjectInfo | null = null;
+
+    if (!finalWorkspace && activeProject?.workspace) {
+      finalWorkspace = activeProject.workspace;
+      isCustomWorkspace = true;
+    }
+
+    if (finalWorkspace) {
+      project = await ensureProjectForWorkspace(finalWorkspace);
+      lastProjectWorkspaceRef.current = project.workspace;
+    }
+
+    const projectId = project?.id;
 
     const agentInfo = selectedAgentInfo;
     const isPreset = isPresetAgent;
@@ -693,6 +727,7 @@ const Guid: React.FC = () => {
             defaultFiles: files,
             workspace: finalWorkspace,
             customWorkspace: isCustomWorkspace,
+            projectId,
             webSearchEngine: isGoogleAuth ? 'google' : 'default',
             // 传递 rules（skills 通过 SkillManager 加载）
             // Pass rules (skills loaded via SkillManager)
@@ -760,6 +795,7 @@ const Guid: React.FC = () => {
             defaultFiles: files,
             workspace: finalWorkspace,
             customWorkspace: isCustomWorkspace,
+            projectId,
             // Pass preset context (rules only)
             presetContext: isPreset ? presetRules : undefined,
             // 启用的 skills 列表（通过 SkillManager 加载）/ Enabled skills list (loaded via SkillManager)
@@ -822,6 +858,7 @@ const Guid: React.FC = () => {
             defaultFiles: files,
             workspace: finalWorkspace,
             customWorkspace: isCustomWorkspace,
+            projectId,
             backend: acpBackend,
             cliPath: acpAgentInfo?.cliPath,
             agentName: acpAgentInfo?.name, // 存储自定义代理的配置名称 / Store configured name for custom agents
@@ -893,7 +930,7 @@ const Guid: React.FC = () => {
         setMentionSelectorOpen(false);
         setMentionActiveIndex(0);
         setFiles([]);
-        setDir('');
+        setDir(activeProject?.workspace || '');
       })
       .catch((error) => {
         console.error('Failed to send message:', error);
@@ -1168,7 +1205,10 @@ const Guid: React.FC = () => {
                             .invoke({ properties: ['openDirectory'] })
                             .then((files) => {
                               if (files && files[0]) {
-                                setDir(files[0]);
+                                ensureProjectForWorkspace(files[0]).then((project) => {
+                                  setDir(project.workspace);
+                                  lastProjectWorkspaceRef.current = project.workspace;
+                                });
                               }
                             })
                             .catch((error) => {

@@ -20,27 +20,27 @@ const ensureAiWorkspace = async (workspace: string) => {
   const files: Array<{ path: string; content: string }> = [
     {
       path: path.join(aiRoot, 'context', 'project_state.md'),
-      content: '# Project State\n\n- Status: initialized\n',
+      content: '',
     },
     {
       path: path.join(aiRoot, 'context', 'active_context.md'),
-      content: '# Active Context\n\n',
+      content: '',
     },
     {
       path: path.join(aiRoot, 'specs', 'tech_spec.md'),
-      content: '# Technical Spec\n\n',
+      content: '',
     },
     {
       path: path.join(aiRoot, 'tasks', 'current_task.md'),
-      content: '# Current Task\n\n',
+      content: '',
     },
     {
       path: path.join(aiRoot, 'tasks', 'done_log.md'),
-      content: '# Done Log\n\n',
+      content: '',
     },
     {
       path: path.join(aiRoot, 'backlog.md'),
-      content: '# Backlog\n\n',
+      content: '',
     },
   ];
 

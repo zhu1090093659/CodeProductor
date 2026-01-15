@@ -25,6 +25,7 @@ import { Streamdown } from 'streamdown';
 import MarkdownEditor from '../editors/MarkdownEditor';
 import SelectionToolbar from '../renderers/SelectionToolbar';
 import { useContainerScroll, useContainerScrollTarget } from '../../hooks/useScrollSyncHelpers';
+import styles from './MarkdownViewer.module.css';
 
 interface MarkdownPreviewProps {
   content: string; // Markdown 内容 / Markdown content
@@ -367,7 +368,7 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, onClose, hid
           <MarkdownEditor value={content} onChange={(value) => onContentChange?.(value)} />
         ) : (
           // 预览模式：渲染 Markdown / Preview mode: Render Markdown
-          <div style={{ wordWrap: 'break-word', overflowWrap: 'break-word', width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+          <div className={styles.markdownPreview} style={{ wordWrap: 'break-word', overflowWrap: 'break-word', width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
             <Streamdown
               // 核心功能：解析不完整的 Markdown，优化流式渲染体验 / Core feature: parse incomplete Markdown for optimal streaming
               parseIncompleteMarkdown={true}
