@@ -119,6 +119,7 @@
     "better-sqlite3": "^12.4.1",
     "buffer": "^6.0.3",
     "classnames": "^2.5.1",
+    "chokidar": "^4.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "diff2html": "^3.4.52",
@@ -136,6 +137,7 @@
     "jsonwebtoken": "^9.0.2",
     "katex": "^0.16.22",
     "mammoth": "^1.11.0",
+    "node-pty": "^1.0.0",
     "officeparser": "^5.2.2",
     "openai": "^5.12.2",
     "pptx2json": "^0.0.10",
@@ -162,6 +164,8 @@
     "web-tree-sitter": "^0.25.10",
     "ws": "^8.18.3",
     "xlsx-republish": "^0.20.3",
+    "xterm": "^5.3.0",
+    "xterm-addon-fit": "^0.8.0",
     "zod": "^3.25.76"
   },
   "optionalDependencies": {

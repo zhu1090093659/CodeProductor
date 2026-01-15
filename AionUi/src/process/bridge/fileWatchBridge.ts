@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import fs from 'fs';
 import { ipcBridge } from '@/common';
+import chokidar, { type FSWatcher } from 'chokidar';
 
 // 存储所有文件监听器 / Store all file watchers
-const watchers = new Map<string, fs.FSWatcher>();
+const watchers = new Map<string, FSWatcher>();
 
 // 初始化文件监听桥接，负责 start/stop 所有 watcher / Initialize file watch bridge to manage start/stop of watchers
 export function initFileWatchBridge(): void {
@@ -21,10 +21,15 @@ export function initFileWatchBridge(): void {
         watchers.delete(filePath);
       }
 
-      // 创建文件监听器 / Create file watcher
-      const watcher = fs.watch(filePath, (eventType) => {
-        // 文件变化时，通知 renderer 进程 / Notify renderer process on file change
-        ipcBridge.fileWatch.fileChanged.emit({ filePath, eventType });
+      // 创建文件/目录监听器 / Create file/directory watcher
+      const watcher = chokidar.watch(filePath, {
+        ignoreInitial: true,
+        persistent: true,
+        depth: 10,
+      });
+
+      watcher.on('all', (eventType, changedPath) => {
+        ipcBridge.fileWatch.fileChanged.emit({ filePath: changedPath, eventType });
       });
 
       watchers.set(filePath, watcher);
@@ -39,8 +44,9 @@ export function initFileWatchBridge(): void {
   // 停止监听文件 / Stop watching file
   ipcBridge.fileWatch.stopWatch.provider(({ filePath }) => {
     try {
-      if (watchers.has(filePath)) {
-        watchers.get(filePath)?.close();
+      const watcher = watchers.get(filePath);
+      if (watcher) {
+        void watcher.close();
         watchers.delete(filePath);
         return Promise.resolve({ success: true });
       }
@@ -55,7 +61,7 @@ export function initFileWatchBridge(): void {
   ipcBridge.fileWatch.stopAllWatches.provider(() => {
     try {
       watchers.forEach((watcher) => {
-        watcher.close();
+        void watcher.close();
       });
       watchers.clear();
       return Promise.resolve({ success: true });

@@ -103,6 +103,15 @@ export const fileStream = {
   }>('file-stream-content-update'), // Agent 写入文件时的流式内容更新 / Streaming content update when agent writes file
 };
 
+export const terminal = {
+  spawn: bridge.buildProvider<IBridgeResponse<{ id: string }>, ITerminalSpawnParams>('terminal:spawn'),
+  write: bridge.buildProvider<IBridgeResponse, { id: string; data: string }>('terminal:write'),
+  resize: bridge.buildProvider<IBridgeResponse, { id: string; cols: number; rows: number }>('terminal:resize'),
+  dispose: bridge.buildProvider<IBridgeResponse, { id: string }>('terminal:dispose'),
+  data: bridge.buildEmitter<{ id: string; data: string }>('terminal:data'),
+  exit: bridge.buildEmitter<{ id: string; exitCode: number | null; signal?: number }>('terminal:exit'),
+};
+
 export const googleAuth = {
   login: bridge.buildProvider<IBridgeResponse<{ account: string }>, { proxy?: string }>('google.auth.login'),
   logout: bridge.buildProvider<void, {}>('google.auth.logout'),
@@ -154,6 +163,7 @@ export const mcpService = {
   testMcpConnection: bridge.buildProvider<IBridgeResponse<{ success: boolean; tools?: Array<{ name: string; description?: string }>; error?: string; needsAuth?: boolean; authMethod?: 'oauth' | 'basic'; wwwAuthenticate?: string }>, IMcpServer>('mcp.test-connection'),
   syncMcpToAgents: bridge.buildProvider<IBridgeResponse<{ success: boolean; results: Array<{ agent: string; success: boolean; error?: string }> }>, { mcpServers: IMcpServer[]; agents: Array<{ backend: AcpBackend; name: string; cliPath?: string }> }>('mcp.sync-to-agents'),
   removeMcpFromAgents: bridge.buildProvider<IBridgeResponse<{ success: boolean; results: Array<{ agent: string; success: boolean; error?: string }> }>, { mcpServerName: string; agents: Array<{ backend: AcpBackend; name: string; cliPath?: string }> }>('mcp.remove-from-agents'),
+  callTool: bridge.buildProvider<IBridgeResponse<{ result: unknown }>, { server: IMcpServer; toolName: string; toolArgs: Record<string, unknown> }>('mcp.call-tool'),
   // OAuth 相关接口
   checkOAuthStatus: bridge.buildProvider<IBridgeResponse<{ isAuthenticated: boolean; needsLogin: boolean; error?: string }>, IMcpServer>('mcp.check-oauth-status'),
   loginMcpOAuth: bridge.buildProvider<IBridgeResponse<{ success: boolean; error?: string }>, { server: IMcpServer; config?: any }>('mcp.login-oauth'),
@@ -178,6 +188,10 @@ export const previewHistory = {
   list: bridge.buildProvider<PreviewSnapshotInfo[], { target: PreviewHistoryTarget }>('preview-history.list'),
   save: bridge.buildProvider<PreviewSnapshotInfo, { target: PreviewHistoryTarget; content: string }>('preview-history.save'),
   getContent: bridge.buildProvider<{ snapshot: PreviewSnapshotInfo; content: string } | null, { target: PreviewHistoryTarget; snapshotId: string }>('preview-history.get-content'),
+};
+
+export const git = {
+  diff: bridge.buildProvider<IBridgeResponse<{ diff: string }>, { cwd: string }>('git.diff'),
 };
 
 // 预览面板相关接口 / Preview panel API
@@ -253,6 +267,15 @@ export interface ICreateConversationParams {
     /** 预设助手 ID，用于在会话面板显示助手名称和头像 / Preset assistant ID for displaying name and avatar in conversation panel */
     presetAssistantId?: string;
   };
+}
+
+export interface ITerminalSpawnParams {
+  cwd?: string;
+  cols?: number;
+  rows?: number;
+  shell?: string;
+  args?: string[];
+  env?: Record<string, string>;
 }
 interface IResetConversationParams {
   id?: string;

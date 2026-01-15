@@ -20,6 +20,7 @@ import { iconColors } from '@/renderer/theme/colors';
 import { emitter, useAddEventListener } from '@/renderer/utils/emitter';
 import { mergeFileSelectionItems } from '@/renderer/utils/fileSelection';
 import { getModelContextLimit } from '@/renderer/utils/modelContextLimits';
+import { handleSlashCommand } from '@/renderer/utils/slashCommands';
 import { Button, Message, Tag } from '@arco-design/web-react';
 import { Plus } from '@icon-park/react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -344,6 +345,18 @@ const GeminiSendBox: React.FC<{
 
   const onSendHandler = async (message: string) => {
     if (!currentModel?.useModel) return;
+    if (workspacePath) {
+      const slashResult = await handleSlashCommand(message, workspacePath);
+      if (slashResult.handled) {
+        if (slashResult.message) {
+          Message.success(slashResult.message);
+        }
+        if (slashResult.error) {
+          Message.error(slashResult.error);
+        }
+        return;
+      }
+    }
     const msg_id = uuid();
     // 设置当前活跃的消息 ID，用于过滤掉旧请求的事件
     // Set current active message ID to filter out events from old requests

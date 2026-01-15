@@ -12,6 +12,49 @@ import fs from 'fs/promises';
 import path from 'path';
 import { getSystemDir } from './initStorage';
 
+const ensureAiWorkspace = async (workspace: string) => {
+  const aiRoot = path.join(workspace, '.ai');
+  const dirs = ['context', 'specs', 'tasks'];
+  await Promise.all(dirs.map((dir) => fs.mkdir(path.join(aiRoot, dir), { recursive: true })));
+
+  const files: Array<{ path: string; content: string }> = [
+    {
+      path: path.join(aiRoot, 'context', 'project_state.md'),
+      content: '# Project State\n\n- Status: initialized\n',
+    },
+    {
+      path: path.join(aiRoot, 'context', 'active_context.md'),
+      content: '# Active Context\n\n',
+    },
+    {
+      path: path.join(aiRoot, 'specs', 'tech_spec.md'),
+      content: '# Technical Spec\n\n',
+    },
+    {
+      path: path.join(aiRoot, 'tasks', 'current_task.md'),
+      content: '# Current Task\n\n',
+    },
+    {
+      path: path.join(aiRoot, 'tasks', 'done_log.md'),
+      content: '# Done Log\n\n',
+    },
+    {
+      path: path.join(aiRoot, 'backlog.md'),
+      content: '# Backlog\n\n',
+    },
+  ];
+
+  await Promise.all(
+    files.map(async (file) => {
+      try {
+        await fs.access(file.path);
+      } catch {
+        await fs.writeFile(file.path, file.content, 'utf-8');
+      }
+    })
+  );
+};
+
 const buildWorkspaceWidthFiles = async (defaultWorkspaceName: string, workspace?: string, defaultFiles?: string[], providedCustomWorkspace?: boolean) => {
   // 使用前端提供的customWorkspace标志，如果没有则根据workspace参数判断
   const customWorkspace = providedCustomWorkspace !== undefined ? providedCustomWorkspace : !!workspace;
@@ -24,6 +67,8 @@ const buildWorkspaceWidthFiles = async (defaultWorkspaceName: string, workspace?
     // 规范化路径：去除末尾斜杠，解析为绝对路径
     workspace = path.resolve(workspace);
   }
+  await ensureAiWorkspace(workspace);
+
   if (defaultFiles) {
     for (const file of defaultFiles) {
       // 确保文件路径是绝对路径

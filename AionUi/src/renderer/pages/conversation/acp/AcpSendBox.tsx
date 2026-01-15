@@ -11,7 +11,8 @@ import { useAddOrUpdateMessage } from '@/renderer/messages/hooks';
 import { allSupportedExts } from '@/renderer/services/FileService';
 import { emitter, useAddEventListener } from '@/renderer/utils/emitter';
 import { mergeFileSelectionItems } from '@/renderer/utils/fileSelection';
-import { Button, Tag } from '@arco-design/web-react';
+import { handleSlashCommand } from '@/renderer/utils/slashCommands';
+import { Button, Message, Tag } from '@arco-design/web-react';
 import { Plus } from '@icon-park/react';
 import { iconColors } from '@/renderer/theme/colors';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -274,6 +275,18 @@ const AcpSendBox: React.FC<{
   }, [conversation_id, backend, acpStatus]);
 
   const onSendHandler = async (message: string) => {
+    if (workspacePath) {
+      const slashResult = await handleSlashCommand(message, workspacePath);
+      if (slashResult.handled) {
+        if (slashResult.message) {
+          Message.success(slashResult.message);
+        }
+        if (slashResult.error) {
+          Message.error(slashResult.error);
+        }
+        return;
+      }
+    }
     const msg_id = uuid();
 
     const displayMessage = buildDisplayMessage(message, uploadFile, workspacePath);

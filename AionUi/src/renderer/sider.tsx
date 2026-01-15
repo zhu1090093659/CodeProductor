@@ -3,6 +3,7 @@ import React, { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import WorkspaceGroupedHistory from './pages/conversation/WorkspaceGroupedHistory';
+import ProjectModePanel from './pages/conversation/ProjectModePanel';
 import SettingsSider from './pages/settings/SettingsSider';
 import { iconColors } from './theme/colors';
 import { Tooltip } from '@arco-design/web-react';
@@ -68,6 +69,7 @@ const Sider: React.FC<SiderProps> = ({ onSessionClick, collapsed = false }) => {
               <span className='collapsed-hidden font-bold text-t-primary'>{t('conversation.welcome.newConversation')}</span>
             </div>
           </Tooltip>
+        {!collapsed && <ProjectModePanel />}
           <WorkspaceGroupedHistory collapsed={collapsed} onSessionClick={onSessionClick}></WorkspaceGroupedHistory>
         </>
       )}
