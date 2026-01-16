@@ -6,7 +6,8 @@
 
 import { Card, Tag } from '@arco-design/web-react';
 import type { ReactNode } from 'react';
-import React from 'react';
+import { Down, Up } from '@icon-park/react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 export const StatusTag: React.FC<{ status: string }> = ({ status }) => {
@@ -44,23 +45,46 @@ interface BaseToolCallDisplayProps {
 }
 
 const BaseToolCallDisplay: React.FC<BaseToolCallDisplayProps> = ({ toolCallId, title, status, description, icon, additionalTags, children }) => {
+  const { t } = useTranslation();
+  const [isCollapsed, setIsCollapsed] = useState(true);
+
+  const hasDetails = useMemo(() => {
+    return Boolean(description) || Boolean(children) || Boolean(toolCallId);
+  }, [children, description, toolCallId]);
+
   return (
     <Card className='w-full mb-2' size='small' bordered>
       <div className='flex items-start gap-3'>
         <div className='flex-1 min-w-0'>
-          <div className='flex items-center gap-2 mb-2'>
-            <span className='text-lg'>{icon}</span>
-            <span className='font-medium text-t-primary'>{title}</span>
-            <StatusTag status={status} />
-            {additionalTags}
+          <div className='flex items-center justify-between gap-12px mb-2'>
+            <div className='flex items-center gap-2 min-w-0'>
+              <span className='text-lg shrink-0'>{icon}</span>
+              <span className='font-medium text-t-primary truncate'>{title}</span>
+              <StatusTag status={status} />
+              {additionalTags}
+            </div>
+            {hasDetails && (
+              <button
+                type='button'
+                className='flex items-center gap-4px text-xs text-t-secondary hover:text-t-primary transition-colors border-none bg-transparent cursor-pointer shrink-0'
+                onClick={() => setIsCollapsed((prev) => !prev)}
+              >
+                <span>{isCollapsed ? t('common.expandMore') : t('common.collapse')}</span>
+                {isCollapsed ? <Down theme='outline' size={14} fill='currentColor' /> : <Up theme='outline' size={14} fill='currentColor' />}
+              </button>
+            )}
           </div>
 
-          {description && <div className='text-sm text-t-secondary mb-2 overflow-hidden'>{description}</div>}
+          {!isCollapsed && (
+            <>
+              {description && <div className='text-sm text-t-secondary mb-2 overflow-hidden'>{description}</div>}
 
-          {/* 特定工具的详细信息 */}
-          {children}
+              {/* Specific tool details */}
+              {children}
 
-          <div className='text-xs text-t-secondary mt-2'>Tool Call ID: {toolCallId}</div>
+              <div className='text-xs text-t-secondary mt-2'>Tool Call ID: {toolCallId}</div>
+            </>
+          )}
         </div>
       </div>
     </Card>

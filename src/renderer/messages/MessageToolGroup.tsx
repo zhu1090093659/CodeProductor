@@ -8,7 +8,7 @@ import { ipcBridge } from '@/common';
 import type { IMessageToolGroup } from '@/common/chatLib';
 import { iconColors } from '@/renderer/theme/colors';
 import { Alert, Button, Image, Message, Radio, Tag, Tooltip } from '@arco-design/web-react';
-import { Copy, Download, LoadingOne } from '@icon-park/react';
+import { Copy, Down, Download, LoadingOne, Up } from '@icon-park/react';
 import 'diff2html/bundles/css/diff2html.min.css';
 import React, { useCallback, useContext, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -388,6 +388,7 @@ const ToolResultDisplay: React.FC<{
 
 const MessageToolGroup: React.FC<IMessageToolGroupProps> = ({ message }) => {
   const { t } = useTranslation();
+  const [collapsedMap, setCollapsedMap] = useState<Record<string, boolean>>({});
 
   // 收集所有 WriteFile 结果用于汇总显示 / Collect all WriteFile results for summary display
   const writeFileResults = useMemo(() => {
@@ -404,7 +405,15 @@ const MessageToolGroup: React.FC<IMessageToolGroupProps> = ({ message }) => {
       {message.content.map((content, index) => {
         const { status, callId, name, description, resultDisplay, confirmationDetails } = content;
         const isLoading = status !== 'Success' && status !== 'Error' && status !== 'Canceled';
-        // status === "Confirming" &&
+
+        const forceOpen = status === 'Confirming' || Boolean(confirmationDetails);
+        const isCollapsed = forceOpen ? false : collapsedMap[callId] ?? true;
+        const toggle = () => {
+          if (forceOpen) return;
+          setCollapsedMap((prev) => ({ ...prev, [callId]: !isCollapsed }));
+        };
+
+        // Confirmation content must stay visible.
         if (confirmationDetails) {
           return (
             <ConfirmationDetails
@@ -429,6 +438,38 @@ const MessageToolGroup: React.FC<IMessageToolGroupProps> = ({ message }) => {
           );
         }
 
+        const renderHeader = (extra?: React.ReactNode) => {
+          return (
+            <Alert
+              className={ALERT_CLASSES}
+              type={status === 'Error' ? 'error' : status === 'Success' ? 'success' : status === 'Canceled' ? 'warning' : 'info'}
+              icon={isLoading && <LoadingOne theme='outline' size='12' fill={iconColors.primary} className='loading lh-[1] flex' />}
+              content={
+                <div className='flex items-center justify-between gap-8px w-full min-w-0'>
+                  <div className='flex items-center gap-6px min-w-0'>
+                    <Tag className={'mr-4px'}>
+                      {name}
+                      {status === 'Canceled' ? `(${t('messages.canceledExecution')})` : ''}
+                    </Tag>
+                    {extra}
+                  </div>
+                  {(description || resultDisplay) && !forceOpen && (
+                    <button type='button' className='flex items-center gap-4px text-xs text-t-secondary hover:text-t-primary transition-colors border-none bg-transparent cursor-pointer shrink-0' onClick={toggle}>
+                      <span>{isCollapsed ? t('common.expandMore') : t('common.collapse')}</span>
+                      {isCollapsed ? <Down theme='outline' size={14} fill='currentColor' /> : <Up theme='outline' size={14} fill='currentColor' />}
+                    </button>
+                  )}
+                </div>
+              }
+            />
+          );
+        };
+
+        const renderDetails = (node: React.ReactNode) => {
+          if (isCollapsed) return null;
+          return <div className='mt-8px'>{node}</div>;
+        };
+
         // WriteFile 特殊处理：使用 MessageFileChanges 汇总显示 / WriteFile special handling: use MessageFileChanges for summary display
         if (name === 'WriteFile' && typeof resultDisplay !== 'string') {
           if (resultDisplay && typeof resultDisplay === 'object' && 'fileDiff' in resultDisplay) {
@@ -436,7 +477,8 @@ const MessageToolGroup: React.FC<IMessageToolGroupProps> = ({ message }) => {
             if (index === firstWriteFileIndex && writeFileResults.length > 0) {
               return (
                 <div className='w-full min-w-0' key={callId}>
-                  <MessageFileChanges writeFileChanges={writeFileResults} />
+                  {renderHeader()}
+                  {renderDetails(<MessageFileChanges writeFileChanges={writeFileResults} />)}
                 </div>
               );
             }
@@ -445,44 +487,28 @@ const MessageToolGroup: React.FC<IMessageToolGroupProps> = ({ message }) => {
           }
         }
 
-        // ImageGeneration 特殊处理：单独展示图片，不用 Alert 包裹 Special handling for ImageGeneration: display image separately without Alert wrapper
+        // ImageGeneration: wrap in a small collapsible block
         if (name === 'ImageGeneration' && typeof resultDisplay === 'object') {
           const result = resultDisplay as ImageGenerationResult;
           if (result.img_url) {
-            return <ImageDisplay key={callId} imgUrl={result.img_url} relativePath={result.relative_path} />;
+            return (
+              <div key={callId}>
+                {renderHeader()}
+                {renderDetails(<ImageDisplay imgUrl={result.img_url} relativePath={result.relative_path} />)}
+              </div>
+            );
           }
         }
 
         // 通用工具调用展示 Generic tool call display
-        // 将可展开的长内容放在 Alert 下方，保持 Alert 仅展示头部信息
         return (
           <div key={callId}>
-            <Alert
-              className={ALERT_CLASSES}
-              type={status === 'Error' ? 'error' : status === 'Success' ? 'success' : status === 'Canceled' ? 'warning' : 'info'}
-              icon={isLoading && <LoadingOne theme='outline' size='12' fill={iconColors.primary} className='loading lh-[1] flex' />}
-              content={
-                <div>
-                  <Tag className={'mr-4px'}>
-                    {name}
-                    {status === 'Canceled' ? `(${t('messages.canceledExecution')})` : ''}
-                  </Tag>
-                </div>
-              }
-            />
-
-            {(description || resultDisplay) && (
-              <div className='mt-8px'>
+            {renderHeader()}
+            {renderDetails(
+              <>
                 {description && <div className='text-12px text-t-secondary truncate mb-2'>{description}</div>}
-                {resultDisplay && (
-                  <div>
-                    {/* 在 Alert 外展示完整结果 Display full result outside Alert */}
-                    {/* ToolResultDisplay 内部已包含 CollapsibleContent，避免嵌套 */}
-                    {/* ToolResultDisplay already contains CollapsibleContent internally, avoid nesting */}
-                    <ToolResultDisplay content={content} />
-                  </div>
-                )}
-              </div>
+                {resultDisplay && <ToolResultDisplay content={content} />}
+              </>
             )}
           </div>
         );

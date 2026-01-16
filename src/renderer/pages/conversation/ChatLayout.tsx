@@ -111,6 +111,7 @@ const ChatLayout: React.FC<{
   const isMacRuntime = isMacEnvironment();
   // 右侧栏折叠状态引用 / Mirror ref for collapse state
   const rightCollapsedRef = useRef(rightSiderCollapsed);
+  const previousRightSiderCollapsedRef = useRef(rightSiderCollapsed);
   const previousWorkspaceCollapsedRef = useRef<boolean | null>(null);
   const previousSiderCollapsedRef = useRef<boolean | null>(null);
   const previousPreviewOpenRef = useRef(false);
@@ -352,11 +353,17 @@ const ChatLayout: React.FC<{
   // Auto-collapse left sidebar when workspace is expanded (desktop only)
   useEffect(() => {
     if (!workspaceEnabled || !isDesktop) {
+      previousRightSiderCollapsedRef.current = rightSiderCollapsed;
       return;
     }
-    if (!rightSiderCollapsed && layout?.setSiderCollapsed && !layout.siderCollapsed) {
+
+    const wasCollapsed = previousRightSiderCollapsedRef.current;
+    // Only collapse sidebar on transition: collapsed -> expanded
+    if (wasCollapsed && !rightSiderCollapsed && layout?.setSiderCollapsed && !layout.siderCollapsed) {
       layout.setSiderCollapsed(true);
     }
+
+    previousRightSiderCollapsedRef.current = rightSiderCollapsed;
   }, [isDesktop, layout?.setSiderCollapsed, layout?.siderCollapsed, rightSiderCollapsed, workspaceEnabled]);
 
   const mobileHandle =

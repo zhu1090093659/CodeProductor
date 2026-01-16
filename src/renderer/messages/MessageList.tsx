@@ -7,7 +7,7 @@
 import type { CodexToolCallUpdate, TMessage } from '@/common/chatLib';
 import { iconColors } from '@/renderer/theme/colors';
 import { Image } from '@arco-design/web-react';
-import { Down } from '@icon-park/react';
+import { Down, Up } from '@icon-park/react';
 import MessageAcpPermission from '@renderer/messages/acp/MessageAcpPermission';
 import MessageAcpToolCall from '@renderer/messages/acp/MessageAcpToolCall';
 import MessageAgentStatus from '@renderer/messages/MessageAgentStatus';
@@ -74,6 +74,7 @@ const MessageList: React.FC<{ className?: string }> = () => {
   const ref = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
+  const [toolBatchOpenMap, setToolBatchOpenMap] = useState<Record<string, boolean>>({});
   const previousListLengthRef = useRef(list.length);
   const { t } = useTranslation();
 
@@ -97,6 +98,129 @@ const MessageList: React.FC<{ className?: string }> = () => {
   const isTurnDiffMessage = (message: TMessage) => {
     return message.type === 'codex_tool_call' && message.content.subtype === 'turn_diff';
   };
+
+  const isToolMessage = (message: TMessage) => {
+    return message.type === 'tool_call' || message.type === 'tool_group' || message.type === 'codex_tool_call' || message.type === 'acp_tool_call';
+  };
+
+  const toolGroupNeedsAttention = (message: TMessage) => {
+    if (message.type !== 'tool_group') return false;
+    return message.content.some((item) => item.status === 'Confirming' || Boolean(item.confirmationDetails));
+  };
+
+  const renderMessageCore = (message: TMessage) => {
+    switch (message.type) {
+      case 'text':
+        return <MessageText message={message}></MessageText>;
+      case 'tips':
+        return <MessageTips message={message}></MessageTips>;
+      case 'tool_call':
+        return <MessageToolCall message={message}></MessageToolCall>;
+      case 'tool_group':
+        return <MessageToolGroup message={message}></MessageToolGroup>;
+      case 'agent_status':
+        return <MessageAgentStatus message={message}></MessageAgentStatus>;
+      case 'acp_permission':
+        return <MessageAcpPermission message={message}></MessageAcpPermission>;
+      case 'acp_tool_call':
+        return <MessageAcpToolCall message={message}></MessageAcpToolCall>;
+      case 'codex_permission':
+        return <MessageCodexPermission message={message}></MessageCodexPermission>;
+      case 'codex_tool_call':
+        return <MessageCodexToolCall message={message}></MessageCodexToolCall>;
+      default:
+        return <div>{t('messages.unknownMessageType', { type: (message as any).type })}</div>;
+    }
+  };
+
+  const renderListNodes = useMemo(() => {
+    const nodes: React.ReactNode[] = [];
+
+    const renderToolBatch = (batch: TMessage[]) => {
+      const batchKey = `${batch[0]?.id || 'unknown'}-${batch[batch.length - 1]?.id || 'unknown'}`;
+      const forceOpen = batch.some((m) => toolGroupNeedsAttention(m));
+      const isOpen = forceOpen || Boolean(toolBatchOpenMap[batchKey]);
+
+      const toggle = () => {
+        if (forceOpen) return;
+        setToolBatchOpenMap((prev) => ({ ...prev, [batchKey]: !isOpen }));
+      };
+
+      return (
+        <div
+          key={`tool-batch-${batchKey}`}
+          className={classNames('flex items-start message-item [&>div]:max-w-full px-8px m-t-10px max-w-full md:max-w-780px mx-auto', 'tool_batch')}
+        >
+          <div className='w-full min-w-0 border border-[var(--bg-3)] rounded-10px bg-1'>
+            <div className='flex items-center justify-between px-10px py-8px border-b border-[var(--bg-3)]'>
+              <div className='flex items-center gap-8px min-w-0'>
+                <span className='text-sm text-t-primary'>🔧</span>
+                <span className='text-sm text-t-primary truncate'>{`Tools × ${batch.length}`}</span>
+                {forceOpen && <span className='text-xs text-t-secondary'>action required</span>}
+              </div>
+              {!forceOpen && (
+                <button type='button' className='flex items-center gap-4px text-xs text-t-secondary hover:text-t-primary transition-colors border-none bg-transparent cursor-pointer' onClick={toggle}>
+                  <span>{isOpen ? t('common.collapse') : t('common.expandMore')}</span>
+                  {isOpen ? <Up theme='outline' size={14} fill='currentColor' /> : <Down theme='outline' size={14} fill='currentColor' />}
+                </button>
+              )}
+            </div>
+
+            {isOpen && (
+              <div className='px-10px py-10px'>
+                <div className='flex flex-col gap-10px'>
+                  {batch.map((m) => (
+                    <div key={m.id} className='min-w-0'>
+                      {renderMessageCore(m)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    let i = 0;
+    while (i < list.length) {
+      const message = list[i];
+
+      // Keep existing turn_diff summary behavior.
+      if (isTurnDiffMessage(message)) {
+        if (i === firstTurnDiffIndex && turnDiffMessages.length > 0) {
+          nodes.push(
+            <div key={`file-changes-${message.id}`} className='w-full message-item px-8px m-t-10px max-w-full md:max-w-780px mx-auto'>
+              <MessageFileChanges turnDiffChanges={turnDiffMessages} />
+            </div>
+          );
+        }
+        i += 1;
+        continue;
+      }
+
+      // Consecutive tool messages => big collapsible batch. Any non-tool message breaks.
+      if (isToolMessage(message)) {
+        const batch: TMessage[] = [];
+        let j = i;
+        while (j < list.length) {
+          const m = list[j];
+          if (isTurnDiffMessage(m)) break;
+          if (!isToolMessage(m)) break;
+          batch.push(m);
+          j += 1;
+        }
+        nodes.push(renderToolBatch(batch));
+        i = j;
+        continue;
+      }
+
+      nodes.push(<MessageItem message={message} key={message.id}></MessageItem>);
+      i += 1;
+    }
+
+    return nodes;
+  }, [firstTurnDiffIndex, isToolMessage, isTurnDiffMessage, list, renderMessageCore, t, toolBatchOpenMap, turnDiffMessages]);
 
   // 检查是否在底部（允许一定的误差范围）
   const isAtBottom = () => {
@@ -168,24 +292,7 @@ const MessageList: React.FC<{ className?: string }> = () => {
         {/* 使用 PreviewGroup 包裹所有消息，实现跨消息预览图片 Use PreviewGroup to wrap all messages for cross-message image preview */}
         <Image.PreviewGroup actionsLayout={['zoomIn', 'zoomOut', 'originalSize', 'rotateLeft', 'rotateRight']}>
           <ImagePreviewContext.Provider value={{ inPreviewGroup: true }}>
-            {list.map((message, index) => {
-              // 跳过 Codex turn_diff 消息的单独渲染（除了第一个位置显示汇总）
-              // Skip individual Codex turn_diff message rendering (show summary at first position)
-              if (isTurnDiffMessage(message)) {
-                // 在第一个 turn_diff 位置显示汇总组件 / Show summary component at first turn_diff position
-                if (index === firstTurnDiffIndex && turnDiffMessages.length > 0) {
-                  return (
-                    <div key={`file-changes-${message.id}`} className='w-full message-item px-8px m-t-10px max-w-full md:max-w-780px mx-auto'>
-                      <MessageFileChanges turnDiffChanges={turnDiffMessages} />
-                    </div>
-                  );
-                }
-                // 跳过其他 turn_diff 消息 / Skip other turn_diff messages
-                return null;
-              }
-
-              return <MessageItem message={message} key={message.id}></MessageItem>;
-            })}
+            {renderListNodes}
           </ImagePreviewContext.Provider>
         </Image.PreviewGroup>
       </div>
@@ -195,7 +302,7 @@ const MessageList: React.FC<{ className?: string }> = () => {
           <div className='absolute bottom-0 left-0 right-0 h-100px pointer-events-none' />
           {/* 滚动按钮 Scroll button */}
           <div className='absolute bottom-20px left-50% transform -translate-x-50% z-100'>
-            <div className='flex items-center justify-center w-40px h-40px rd-full bg-base shadow-lg cursor-pointer hover:bg-1 transition-all hover:scale-110 border-1 border-solid border-3' onClick={handleScrollButtonClick} title={t('messages.scrollToBottom')} style={{ lineHeight: 0 }}>
+            <div className='flex items-center justify-center w-40px h-40px rd-full bg-base shadow-lg cursor-pointer hover:bg-1 transition-all hover:scale-110 border-solid border-3' onClick={handleScrollButtonClick} title={t('messages.scrollToBottom')} style={{ lineHeight: 0 }}>
               <Down theme='filled' size='20' fill={iconColors.secondary} style={{ display: 'block' }} />
             </div>
           </div>

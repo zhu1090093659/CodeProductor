@@ -6,8 +6,10 @@
 
 import type { IMessageAcpToolCall } from '@/common/chatLib';
 import { Card, Tag } from '@arco-design/web-react';
+import { Down, Up } from '@icon-park/react';
 import { createTwoFilesPatch } from 'diff';
-import React from 'react';
+import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Diff2Html from '../../components/Diff2Html';
 import MarkdownView from '../../components/Markdown';
 
@@ -58,12 +60,14 @@ const ContentView: React.FC<{ content: IMessageAcpToolCall['content']['update'][
 };
 
 const MessageAcpToolCall: React.FC<{ message: IMessageAcpToolCall }> = ({ message }) => {
+  const { t } = useTranslation();
   const { content } = message;
   if (!content?.update) {
     return null;
   }
   const { update } = content;
   const { toolCallId, kind, title, status, rawInput, content: diffContent } = update;
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   const getKindDisplayName = (kind: string) => {
     switch (kind) {
@@ -78,23 +82,44 @@ const MessageAcpToolCall: React.FC<{ message: IMessageAcpToolCall }> = ({ messag
     }
   };
 
+  const hasDetails = useMemo(() => {
+    return Boolean(rawInput) || Boolean(diffContent && diffContent.length > 0) || Boolean(toolCallId);
+  }, [diffContent, rawInput, toolCallId]);
+
   return (
     <Card className='w-full mb-2' size='small' bordered>
       <div className='flex items-start gap-3'>
         <div className='flex-1 min-w-0'>
-          <div className='flex items-center gap-2 mb-2'>
-            <span className='font-medium text-t-primary'>{title || getKindDisplayName(kind)}</span>
-            <StatusTag status={status} />
-          </div>
-          {rawInput && <div className='text-sm'>{typeof rawInput === 'string' ? <MarkdownView>{`\`\`\`\n${rawInput}\n\`\`\``}</MarkdownView> : <pre className='bg-1 p-2 rounded text-xs overflow-x-auto'>{JSON.stringify(rawInput, null, 2)}</pre>}</div>}
-          {diffContent && diffContent.length > 0 && (
-            <div>
-              {diffContent.map((content, index) => (
-                <ContentView key={index} content={content} />
-              ))}
+          <div className='flex items-center justify-between gap-12px mb-2'>
+            <div className='flex items-center gap-2 min-w-0'>
+              <span className='font-medium text-t-primary truncate'>{title || getKindDisplayName(kind)}</span>
+              <StatusTag status={status} />
             </div>
+            {hasDetails && (
+              <button
+                type='button'
+                className='flex items-center gap-4px text-xs text-t-secondary hover:text-t-primary transition-colors border-none bg-transparent cursor-pointer shrink-0'
+                onClick={() => setIsCollapsed((prev) => !prev)}
+              >
+                <span>{isCollapsed ? t('common.expandMore') : t('common.collapse')}</span>
+                {isCollapsed ? <Down theme='outline' size={14} fill='currentColor' /> : <Up theme='outline' size={14} fill='currentColor' />}
+              </button>
+            )}
+          </div>
+
+          {!isCollapsed && (
+            <>
+              {rawInput && <div className='text-sm'>{typeof rawInput === 'string' ? <MarkdownView>{`\`\`\`\n${rawInput}\n\`\`\``}</MarkdownView> : <pre className='bg-1 p-2 rounded text-xs overflow-x-auto'>{JSON.stringify(rawInput, null, 2)}</pre>}</div>}
+              {diffContent && diffContent.length > 0 && (
+                <div>
+                  {diffContent.map((content, index) => (
+                    <ContentView key={index} content={content} />
+                  ))}
+                </div>
+              )}
+              <div className='text-xs text-t-secondary mt-2'>Tool Call ID: {toolCallId}</div>
+            </>
           )}
-          <div className='text-xs text-t-secondary mt-2'>Tool Call ID: {toolCallId}</div>
         </div>
       </div>
     </Card>
