@@ -274,9 +274,9 @@ const ChatLayout: React.FC<{
     setSplitRatio: setWorkspaceSplitRatio,
     createDragHandle: createWorkspaceDragHandle,
   } = useResizableSplit({
-    defaultWidth: 20,
+    defaultWidth: 60,
     minWidth: MIN_WORKSPACE_RATIO,
-    maxWidth: 40,
+    maxWidth: 75,
     storageKey: 'chat-workspace-split-ratio',
   });
 
@@ -348,6 +348,16 @@ const ChatLayout: React.FC<{
       setRightSiderCollapsed(false);
     });
   }, [workspaceEnabled]);
+
+  // Auto-collapse left sidebar when workspace is expanded (desktop only)
+  useEffect(() => {
+    if (!workspaceEnabled || !isDesktop) {
+      return;
+    }
+    if (!rightSiderCollapsed && layout?.setSiderCollapsed && !layout.siderCollapsed) {
+      layout.setSiderCollapsed(true);
+    }
+  }, [isDesktop, layout?.setSiderCollapsed, layout?.siderCollapsed, rightSiderCollapsed, workspaceEnabled]);
 
   const mobileHandle =
     workspaceEnabled && layout?.isMobile

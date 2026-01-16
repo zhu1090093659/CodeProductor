@@ -6,6 +6,7 @@
 
 import { ipcBridge } from '@/common';
 import { ConfigStorage } from '@/common/storage';
+import { STORAGE_KEYS } from '@/common/storageKeys';
 import PwaPullToRefresh from '@/renderer/components/PwaPullToRefresh';
 import Titlebar from '@/renderer/components/Titlebar';
 import { Layout as ArcoLayout } from '@arco-design/web-react';
@@ -54,7 +55,17 @@ const Layout: React.FC<{
   sider: React.ReactNode;
   onSessionClick?: () => void;
 }> = ({ sider, onSessionClick: _onSessionClick }) => {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.SIDEBAR_COLLAPSE);
+      if (stored !== null) {
+        return stored === 'true';
+      }
+    } catch {
+      // Ignore errors
+    }
+    return true;
+  });
   const [isMobile, setIsMobile] = useState(false);
   const [customCss, setCustomCss] = useState<string>('');
   const { onClick } = useDebug();
@@ -167,6 +178,15 @@ const Layout: React.FC<{
   }, [isMobile]);
   useEffect(() => {
     collapsedRef.current = collapsed;
+  }, [collapsed]);
+
+  // Persist sidebar collapse state
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.SIDEBAR_COLLAPSE, String(collapsed));
+    } catch {
+      // Ignore errors
+    }
   }, [collapsed]);
   return (
     <LayoutContext.Provider value={{ isMobile, siderCollapsed: collapsed, setSiderCollapsed: setCollapsed }}>
