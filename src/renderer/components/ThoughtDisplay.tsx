@@ -106,45 +106,13 @@ const ThoughtDisplay: React.FC<ThoughtDisplayProps> = ({ thought, style = 'defau
     };
   }, [theme, style]);
 
-  // 如果没有 thought 且不在运行中，不显示
-  if (!thought?.subject && !running) {
+  const subject = thought?.subject || 'Thinking';
+  const description = thought?.description || '';
+  const headerText = description || t('conversation.chat.processing');
+
+  const show = running || Boolean(thought?.subject) || Boolean(description);
+  if (!show) {
     return null;
-  }
-
-  // 运行中但没有 thought 时显示默认处理状态
-  if (running && !thought?.subject) {
-    return (
-      <div className='rd-12px overflow-hidden' style={containerStyle}>
-        <div className='px-10px py-8px text-14px lh-20px text-t-primary flex items-center justify-between gap-8px'>
-          <div className='flex items-center gap-8px min-w-0'>
-            <Spin size={14} />
-            <Tag color='arcoblue' size='small'>
-              Thinking
-            </Tag>
-            <span className='text-t-secondary truncate'>{t('conversation.chat.processing')}</span>
-          </div>
-          <div className='flex items-center gap-8px shrink-0'>
-            {running && (
-              <span className='text-t-tertiary text-12px whitespace-nowrap'>
-                ({t('common.escToCancel')}, {formatElapsedTime(elapsedTime)})
-              </span>
-            )}
-            <button type='button' className='flex items-center gap-4px text-xs text-t-secondary hover:text-t-primary transition-colors border-none bg-transparent cursor-pointer' onClick={() => setIsExpanded((v) => !v)}>
-              <span>{isExpanded ? t('common.collapse') : t('common.expandMore')}</span>
-              {isExpanded ? <Up theme='outline' size={14} fill='currentColor' /> : <Down theme='outline' size={14} fill='currentColor' />}
-            </button>
-          </div>
-        </div>
-
-        {isExpanded && (
-          <div className='px-10px pb-10px'>
-            <div className='bg-1/40 rounded-8px p-10px max-h-220px overflow-y-auto'>
-              <div className='text-t-secondary text-12px'>{t('codex.thinking.analyzing', { defaultValue: 'Thinking…' })}</div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
   }
 
   return (
@@ -153,9 +121,9 @@ const ThoughtDisplay: React.FC<ThoughtDisplayProps> = ({ thought, style = 'defau
         <div className='flex items-center gap-8px min-w-0'>
           {running && <Spin size={14} />}
           <Tag color='arcoblue' size='small'>
-            {thought.subject}
+            {subject}
           </Tag>
-          {!isExpanded && <span className='text-t-secondary truncate'>{thought.description}</span>}
+          {!isExpanded && <span className='text-t-secondary truncate'>{headerText}</span>}
         </div>
         <div className='flex items-center gap-8px shrink-0'>
           {running && (
@@ -173,7 +141,7 @@ const ThoughtDisplay: React.FC<ThoughtDisplayProps> = ({ thought, style = 'defau
       {isExpanded && (
         <div className='px-10px pb-10px'>
           <div className='bg-1/40 rounded-8px p-10px max-h-260px overflow-y-auto'>
-            <div className='text-t-primary whitespace-pre-wrap break-words'>{thought.description}</div>
+            <div className='text-t-primary whitespace-pre-wrap break-words'>{description || t('codex.thinking.analyzing', { defaultValue: 'Thinking…' })}</div>
           </div>
         </div>
       )}

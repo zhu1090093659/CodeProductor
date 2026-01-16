@@ -48,10 +48,7 @@ const CodexSendBox: React.FC<{ conversation_id: string }> = ({ conversation_id }
   const [running, setRunning] = useState(false);
   const [aiProcessing, setAiProcessing] = useState(false); // New loading state for AI response
   const [codexStatus, setCodexStatus] = useState<string | null>(null);
-  const [_thought, setThought] = useState<ThoughtData>({
-    description: '',
-    subject: '',
-  });
+  const thoughtRef = React.useRef<ThoughtData>({ subject: '', description: '' });
 
   const { content, setContent, atPath, setAtPath, uploadFile, setUploadFile } = (function useDraft() {
     const { data, mutate } = useCodexSendBoxDraft(conversation_id);
@@ -80,7 +77,7 @@ const CodexSendBox: React.FC<{ conversation_id: string }> = ({ conversation_id }
     setRunning(false);
     setAiProcessing(false);
     setCodexStatus(null);
-    setThought({ subject: '', description: '' });
+    thoughtRef.current = { subject: '', description: '' };
     emitter.emit('conversation.thought.update', {
       conversationId: conversation_id,
       thought: { subject: '', description: '' },
@@ -109,19 +106,18 @@ const CodexSendBox: React.FC<{ conversation_id: string }> = ({ conversation_id }
       // Frontend only needs to update UI
       switch (message.type) {
         case 'thought':
-          setThought(message.data as ThoughtData);
+          thoughtRef.current = (message.data as ThoughtData) || { subject: 'Thinking', description: '' };
           emitter.emit('conversation.thought.update', {
             conversationId: conversation_id,
-            thought: message.data as ThoughtData,
+            thought: thoughtRef.current,
             running: true,
           });
           break;
         case 'finish':
-          setThought(message.data as ThoughtData);
           setAiProcessing(false);
           emitter.emit('conversation.thought.update', {
             conversationId: conversation_id,
-            thought: (message.data as ThoughtData) || { subject: '', description: '' },
+            thought: thoughtRef.current,
             running: false,
           });
           break;

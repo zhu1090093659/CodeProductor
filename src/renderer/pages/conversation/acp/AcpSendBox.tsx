@@ -35,17 +35,9 @@ const useAcpSendBoxDraft = getSendBoxDraftHook('acp', {
 const useAcpMessage = (conversation_id: string) => {
   const addOrUpdateMessage = useAddOrUpdateMessage();
   const [running, setRunning] = useState(false);
-  const [thought, setThought] = useState<ThoughtData>({
-    description: '',
-    subject: '',
-  });
-  const thoughtRef = useRef(thought);
+  const thoughtRef = useRef<ThoughtData>({ subject: '', description: '' });
   const [acpStatus, setAcpStatus] = useState<'connecting' | 'connected' | 'authenticated' | 'session_active' | 'disconnected' | 'error' | null>(null);
   const [aiProcessing, setAiProcessing] = useState(false); // New loading state for AI response
-
-  useEffect(() => {
-    thoughtRef.current = thought;
-  }, [thought]);
 
   const handleResponseMessage = useCallback(
     (message: IResponseMessage) => {
@@ -55,10 +47,10 @@ const useAcpMessage = (conversation_id: string) => {
       const transformedMessage = transformMessage(message);
       switch (message.type) {
         case 'thought':
-          setThought(message.data as ThoughtData);
+          thoughtRef.current = (message.data as ThoughtData) || { subject: 'Thinking', description: '' };
           emitter.emit('conversation.thought.update', {
             conversationId: conversation_id,
-            thought: message.data as ThoughtData,
+            thought: thoughtRef.current,
             running: true,
           });
           break;
@@ -78,6 +70,7 @@ const useAcpMessage = (conversation_id: string) => {
             thought: thoughtRef.current,
             running: false,
           });
+          thoughtRef.current = { subject: '', description: '' };
           break;
         case 'content':
           addOrUpdateMessage(transformedMessage);
@@ -119,7 +112,7 @@ const useAcpMessage = (conversation_id: string) => {
           break;
       }
     },
-    [conversation_id, addOrUpdateMessage, setThought, setRunning, setAiProcessing, setAcpStatus]
+    [conversation_id, addOrUpdateMessage, setRunning, setAiProcessing, setAcpStatus]
   );
 
   useEffect(() => {
@@ -129,7 +122,7 @@ const useAcpMessage = (conversation_id: string) => {
   // Reset state when conversation changes
   useEffect(() => {
     setRunning(false);
-    setThought({ subject: '', description: '' });
+    thoughtRef.current = { subject: '', description: '' };
     setAcpStatus(null);
     setAiProcessing(false);
     emitter.emit('conversation.thought.update', {
@@ -139,7 +132,7 @@ const useAcpMessage = (conversation_id: string) => {
     });
   }, [conversation_id]);
 
-  return { thought, setThought, running, acpStatus, aiProcessing, setAiProcessing };
+  return { running, acpStatus, aiProcessing, setAiProcessing };
 };
 
 const EMPTY_AT_PATH: Array<string | FileOrFolderItem> = [];
@@ -182,7 +175,7 @@ const AcpSendBox: React.FC<{
   backend: AcpBackend;
 }> = ({ conversation_id, backend }) => {
   const [workspacePath, setWorkspacePath] = useState('');
-  const { thought, running, acpStatus, aiProcessing, setAiProcessing } = useAcpMessage(conversation_id);
+  const { running, acpStatus, aiProcessing, setAiProcessing } = useAcpMessage(conversation_id);
   const { t } = useTranslation();
   const { checkAndUpdateTitle } = useAutoTitle();
   const { commands: slashCommands } = useSlashCommands();
