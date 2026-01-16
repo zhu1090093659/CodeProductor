@@ -194,6 +194,12 @@ const MessageList: React.FC<{ className?: string }> = () => {
     while (i < list.length) {
       const message = list[i];
 
+      // Hide agent status messages in the message stream (status is shown in header instead).
+      if (message.type === 'agent_status') {
+        i += 1;
+        continue;
+      }
+
       // Keep existing turn_diff summary behavior.
       if (isTurnDiffMessage(message)) {
         if (i === firstTurnDiffIndex && turnDiffMessages.length > 0) {

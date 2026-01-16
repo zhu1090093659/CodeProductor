@@ -1,14 +1,16 @@
 import { ConfigStorage } from '@/common/storage';
 import { STORAGE_KEYS } from '@/common/storageKeys';
+import type { IMessageAgentStatus } from '@/common/chatLib';
 import FlexFullContainer from '@/renderer/components/FlexFullContainer';
 import { useLayoutContext } from '@/renderer/context/LayoutContext';
 import { useResizableSplit } from '@/renderer/hooks/useResizableSplit';
 import { PreviewPanel, usePreviewContext } from '@/renderer/pages/conversation/preview';
 import ConversationTabs from '@/renderer/pages/conversation/ConversationTabs';
 import { useConversationTabs } from '@/renderer/pages/conversation/context/ConversationTabsContext';
-import { Layout as ArcoLayout } from '@arco-design/web-react';
+import { Badge, Layout as ArcoLayout } from '@arco-design/web-react';
 import { ExpandLeft, ExpandRight, Robot } from '@icon-park/react';
 import React, { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import useSWR from 'swr';
 
 import ClaudeLogo from '@/renderer/assets/logos/claude.svg';
@@ -80,6 +82,7 @@ const ChatLayout: React.FC<{
   siderTitle?: React.ReactNode;
   backend?: string;
   agentName?: string;
+  agentStatus?: IMessageAgentStatus['content'] | null;
   /** 自定义 agent logo（可以是 SVG 路径或 emoji 字符串）/ Custom agent logo (can be SVG path or emoji string) */
   agentLogo?: string;
   /** 是否为 emoji 类型的 logo / Whether the logo is an emoji */
@@ -88,6 +91,7 @@ const ChatLayout: React.FC<{
   headerLeft?: React.ReactNode;
   workspaceEnabled?: boolean;
 }> = (props) => {
+  const { t } = useTranslation();
   // 工作空间面板折叠状态 - 全局持久化
   // Workspace panel collapse state - globally persisted
   const [rightSiderCollapsed, setRightSiderCollapsed] = useState(() => {
@@ -123,7 +127,33 @@ const ChatLayout: React.FC<{
   const { data: customAgents } = useSWR(backend === 'custom' && !agentName ? 'acp.customAgents' : null, () => ConfigStorage.get('acp.customAgents'));
 
   // Compute display name with fallback chain (use first custom agent as fallback for backward compatibility)
-  const displayName = agentName || (backend === 'custom' && customAgents?.[0]?.name) || ACP_BACKENDS_ALL[backend as keyof typeof ACP_BACKENDS_ALL]?.name || backend;
+  const displayName = agentName || (backend === 'custom' && customAgents?.[0]?.name) || ACP_BACKENDS_ALL[backend as keyof typeof ACP_BACKENDS_ALL]?.name || backend || 'agent';
+  const statusKey = props.agentStatus?.status || null;
+  const statusTextFull = statusKey ? t(`acp.status.${statusKey}`, { agent: displayName }) : null;
+  const statusText =
+    statusTextFull && displayName
+      ? statusTextFull
+          .split(displayName)
+          .join('')
+          .replace(/\s+/g, ' ')
+          .trim()
+      : statusTextFull;
+  const badgeStatus: React.ComponentProps<typeof Badge>['status'] | null = (function resolveBadgeStatus() {
+    if (!statusKey) return null;
+    switch (statusKey) {
+      case 'connecting':
+      case 'disconnected':
+        return 'default';
+      case 'connected':
+      case 'authenticated':
+      case 'session_active':
+        return 'success';
+      case 'error':
+        return 'error';
+      default:
+        return 'default';
+    }
+  })();
 
   // 获取 tabs 状态，有 tabs 时隐藏会话标题
   const { openTabs } = useConversationTabs();
@@ -414,6 +444,12 @@ const ChatLayout: React.FC<{
                   <div className='ml-16px flex items-center gap-2 bg-2 w-fit rounded-full px-[8px] py-[2px]'>
                     {agentLogo ? agentLogoIsEmoji ? <span className='text-sm'>{agentLogo}</span> : <img src={agentLogo} alt={`${agentName || 'agent'} logo`} width={16} height={16} style={{ objectFit: 'contain' }} /> : AGENT_LOGO_MAP[backend as AcpBackend] ? <img src={AGENT_LOGO_MAP[backend as AcpBackend]} alt={`${backend} logo`} width={16} height={16} style={{ objectFit: 'contain' }} /> : <Robot theme='outline' size={16} fill={iconColors.primary} />}
                     <span className='text-sm'>{displayName}</span>
+                    {badgeStatus && statusText && (
+                      <span className='flex items-center gap-6px text-sm' title={statusTextFull || undefined}>
+                        <Badge status={badgeStatus} />
+                        <span>{statusText}</span>
+                      </span>
+                    )}
                   </div>
                 )}
               </div>

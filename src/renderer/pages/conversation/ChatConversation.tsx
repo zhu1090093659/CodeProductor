@@ -6,11 +6,13 @@
 
 import { ipcBridge } from '@/common';
 import { ASSISTANT_PRESETS } from '@/common/presets/assistantPresets';
+import type { IResponseMessage } from '@/common/ipcBridge';
+import type { IMessageAgentStatus } from '@/common/chatLib';
 import type { TChatConversation } from '@/common/storage';
 import { uuid } from '@/common/utils';
 import { Button, Dropdown, Menu, Tooltip, Typography } from '@arco-design/web-react';
 import { History } from '@icon-park/react';
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import useSWR from 'swr';
@@ -91,6 +93,7 @@ const ChatConversation: React.FC<{
 }> = ({ conversation }) => {
   const { t, i18n } = useTranslation();
   const workspaceEnabled = Boolean(conversation?.extra?.workspace);
+  const [agentStatus, setAgentStatus] = useState<IMessageAgentStatus['content'] | null>(null);
 
   const conversationNode = useMemo(() => {
     if (!conversation) return null;
@@ -103,6 +106,18 @@ const ChatConversation: React.FC<{
         return null;
     }
   }, [conversation]);
+
+  useEffect(() => {
+    setAgentStatus(null);
+    if (!conversation) return;
+
+    const stream = conversation.type === 'acp' ? ipcBridge.acpConversation.responseStream : ipcBridge.codexConversation.responseStream;
+    return stream.on((message: IResponseMessage) => {
+      if (message.type !== 'agent_status') return;
+      if (message.conversation_id !== conversation.id) return;
+      setAgentStatus(message.data as IMessageAgentStatus['content']);
+    });
+  }, [conversation?.id, conversation?.type]);
 
   // 获取预设助手信息（如果有）/ Get preset assistant info for ACP/Codex conversations
   const presetAssistantInfo = useMemo(() => {
@@ -157,7 +172,14 @@ const ChatConversation: React.FC<{
       };
 
   return (
-    <ChatLayout title={conversation?.name} {...chatLayoutProps} siderTitle={sliderTitle} sider={<ChatSider conversation={conversation} />} workspaceEnabled={workspaceEnabled}>
+    <ChatLayout
+      title={conversation?.name}
+      {...chatLayoutProps}
+      agentStatus={agentStatus}
+      siderTitle={sliderTitle}
+      sider={<ChatSider conversation={conversation} />}
+      workspaceEnabled={workspaceEnabled}
+    >
       {conversationNode}
     </ChatLayout>
   );
