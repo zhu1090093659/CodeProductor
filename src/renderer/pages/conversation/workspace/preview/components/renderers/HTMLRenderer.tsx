@@ -9,6 +9,29 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { generateInspectScript } from './htmlInspectScript';
 import { useScrollSyncTarget } from '../../hooks/useScrollSyncHelpers';
 
+/**
+ * Normalize OS file path to a URL-safe file:// URL.
+ * - Windows drive paths: C:\a\b -> file:///C:/a/b
+ * - UNC paths: \\server\share -> file:////server/share
+ */
+const toFileUrl = (rawPath: string): string => {
+  const normalized = rawPath.replace(/\\/g, '/');
+  // Ensure Windows drive paths have a leading slash.
+  const withLeadingSlash = /^[A-Za-z]:\//.test(normalized) ? `/${normalized}` : normalized;
+  return encodeURI(`file://${withLeadingSlash}`);
+};
+
+/**
+ * Convert OS file path to directory file:// URL (always ends with a slash).
+ */
+const toFileDirUrl = (rawPath: string): string => {
+  const normalized = rawPath.replace(/\\/g, '/');
+  const idx = normalized.lastIndexOf('/');
+  const dirPath = idx >= 0 ? normalized.slice(0, idx + 1) : normalized;
+  const dirUrl = toFileUrl(dirPath);
+  return dirUrl.endsWith('/') ? dirUrl : `${dirUrl}/`;
+};
+
 /** 选中元素的数据结构 / Selected element data structure */
 export interface InspectedElement {
   /** 完整 HTML / Full HTML */
@@ -92,7 +115,7 @@ const HTMLRenderer: React.FC<HTMLRendererProps> = ({ content, filePath, containe
     // 如果有相对资源引用且有文件路径，直接用 file:// URL 加载
     // If has relative resource references and has file path, load directly via file:// URL
     if (shouldLoadFromFile && filePath) {
-      return `file://${filePath}`;
+      return toFileUrl(filePath);
     }
 
     // 否则使用 data URL（适用于动态生成的 HTML 或没有外部资源的情况）
@@ -101,8 +124,7 @@ const HTMLRenderer: React.FC<HTMLRendererProps> = ({ content, filePath, containe
 
     // 注入 base 标签支持相对路径 / Inject base tag for relative paths
     if (filePath) {
-      const fileDir = filePath.substring(0, filePath.lastIndexOf('/') + 1);
-      const baseUrl = `file://${fileDir}`;
+      const baseUrl = toFileDirUrl(filePath);
 
       // 检查是否已有 base 标签 / Check if base tag exists
       if (!html.match(/<base\s+href=/i)) {
