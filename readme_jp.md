@@ -318,8 +318,8 @@ _独自のCSSコードでカスタマイズし、インターフェースを好�
   </a>
 </p>
 
-- [💬 GitHub Discussions](https://github.com/iOfficeAI/CodeConductor/discussions) - **アイデアを共有、提案、使用のヒントを交換**
-- [🐛 問題を報告](https://github.com/iOfficeAI/CodeConductor/issues) - バグや機能リクエストを報告
+- [💬 GitHub Discussions](https://github.com/zhu1090093659/CodeProductor/discussions) - **アイデアを共有、提案、使用のヒントを交換**
+- [🐛 問題を報告](https://github.com/zhu1090093659/CodeProductor/issues) - バグや機能リクエストを報告
 - [📦 リリース更新](https://github.com/iOfficeAI/CodeConductor/releases) - 最新版を取得
 
 ### 🤝 コード貢献
@@ -353,8 +353,8 @@ CodeConductorに貢献してくれたすべての開発者に感謝します！
 ## 📊 スター履歴
 
 <p align="center">
-  <a href="https://www.star-history.com/#iOfficeAI/aionui&Date" target="_blank">
-    <img src="https://api.star-history.com/svg?repos=iOfficeAI/aionui&type=Date" alt="GitHubスター傾向" width="600">
+  <a href="https://www.star-history.com/#zhu1090093659/CodeProductor&Date" target="_blank">
+    <img src="https://api.star-history.com/svg?repos=zhu1090093659/CodeProductor&type=Date" alt="GitHubスター傾向" width="600">
   </a>
 </p>
 
@@ -362,6 +362,6 @@ CodeConductorに貢献してくれたすべての開発者に感謝します！
 
 **⭐ 気に入ったらスターをお願いします**
 
-[バグを報告](https://github.com/iOfficeAI/CodeConductor/issues) · [機能をリクエスト](https://github.com/iOfficeAI/CodeConductor/issues)
+[バグを報告](https://github.com/zhu1090093659/CodeProductor/issues) · [機能をリクエスト](https://github.com/zhu1090093659/CodeProductor/issues)
 
 </div>
