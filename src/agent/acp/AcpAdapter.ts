@@ -6,20 +6,18 @@
 
 import type { IMessageAcpToolCall, IMessageText, TMessage } from '@/common/chatLib';
 import { uuid } from '@/common/utils';
-import type { AcpBackend, AcpSessionUpdate, AgentMessageChunkUpdate, AgentThoughtChunkUpdate, AvailableCommandsUpdate, PlanUpdate, ToolCallUpdate, ToolCallUpdateStatus } from '@/types/acpTypes';
+import type { AcpBackend, AcpSessionUpdate, AgentMessageChunkUpdate, AgentThoughtChunkUpdate, PlanUpdate, ToolCallUpdate, ToolCallUpdateStatus } from '@/types/acpTypes';
 
 /**
  * Adapter class to convert ACP messages to AionUI message format
  */
 export class AcpAdapter {
   private conversationId: string;
-  private backend: AcpBackend;
   private activeToolCalls: Map<string, IMessageAcpToolCall> = new Map();
   private currentMessageId: string | null = uuid(); // Track current message for streaming chunks
 
-  constructor(conversationId: string, backend: AcpBackend) {
+  constructor(conversationId: string, _backend: AcpBackend) {
     this.conversationId = conversationId;
-    this.backend = backend;
   }
 
   /**
@@ -49,22 +47,14 @@ export class AcpAdapter {
 
     switch (update.sessionUpdate) {
       case 'agent_message_chunk': {
-        if (update.content) {
-          const message = this.convertSessionUpdateChunk(update);
-          if (message) {
-            messages.push(message);
-          }
-        }
+        const message = this.convertSessionUpdateChunk(update);
+        if (message) messages.push(message);
         break;
       }
 
       case 'agent_thought_chunk': {
-        if (update.content) {
-          const message = this.convertThoughtChunk(update);
-          if (message) {
-            messages.push(message);
-          }
-        }
+        const message = this.convertThoughtChunk(update);
+        if (message) messages.push(message);
         // Reset message tracking for next agent_message_chunk
         this.resetMessageTracking();
         break;
@@ -101,12 +91,7 @@ export class AcpAdapter {
       }
 
       case 'available_commands_update': {
-        const commandsMessage = this.convertAvailableCommandsUpdate(sessionUpdate as AvailableCommandsUpdate);
-        if (commandsMessage) {
-          messages.push(commandsMessage);
-        }
-        // Reset message tracking so next agent_message_chunk gets new msg_id
-        this.resetMessageTracking();
+        // Ignore available commands update to avoid showing meta/debug info in chat stream.
         break;
       }
 
@@ -275,39 +260,4 @@ export class AcpAdapter {
     return null;
   }
 
-  /**
-   * Convert available commands update to AionUI message
-   */
-  private convertAvailableCommandsUpdate(update: AvailableCommandsUpdate): TMessage | null {
-    const baseMessage = {
-      id: uuid(),
-      msg_id: uuid(), // 生成独立的 msg_id，避免与其他消息合并
-      conversation_id: this.conversationId,
-      createdAt: Date.now(),
-      position: 'left' as const,
-    };
-
-    const commandsData = update.update;
-    if (commandsData.availableCommands && commandsData.availableCommands.length > 0) {
-      const commandsList = commandsData.availableCommands
-        .map((command) => {
-          let line = `• **${command.name}**: ${command.description}`;
-          if (command.input?.hint) {
-            line += ` (${command.input.hint})`;
-          }
-          return line;
-        })
-        .join('\n');
-
-      return {
-        ...baseMessage,
-        type: 'text',
-        content: {
-          content: `🛠️ **Available Commands**\n\n${commandsList}`,
-        },
-      } as IMessageText;
-    }
-
-    return null;
-  }
 }

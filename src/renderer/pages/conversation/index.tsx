@@ -1,4 +1,5 @@
 import { ipcBridge } from '@/common';
+import { useLayoutContext } from '@/renderer/context/LayoutContext';
 import { Spin } from '@arco-design/web-react';
 import React, { useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
@@ -11,7 +12,9 @@ const ChatConversationIndex: React.FC = () => {
   const { id } = useParams();
   const { closePreview } = usePreviewContext();
   const { openTab } = useConversationTabs();
+  const layout = useLayoutContext();
   const previousConversationIdRef = useRef<string | undefined>(undefined);
+  const autoCollapsedConversationIdRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     if (!id) return;
@@ -22,8 +25,16 @@ const ChatConversationIndex: React.FC = () => {
       closePreview();
     }
 
+    // Entering a conversation: auto-collapse left sidebar once per conversation
+    if (autoCollapsedConversationIdRef.current !== id) {
+      if (layout && layout.siderCollapsed === false) {
+        layout.setSiderCollapsed(true);
+      }
+      autoCollapsedConversationIdRef.current = id;
+    }
+
     previousConversationIdRef.current = id;
-  }, [id, closePreview]);
+  }, [id, closePreview, layout]);
 
   const { data, isLoading } = useSWR(`conversation/${id}`, () => {
     return ipcBridge.conversation.get.invoke({ id });
