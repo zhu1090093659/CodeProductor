@@ -16,7 +16,6 @@ export const mainConfig: Configuration = {
   entry: {
     index: './src/index.ts',
     worker: './src/worker/index.ts',
-    gemini: './src/worker/gemini.ts',
     acp: './src/worker/acp.ts',
     codex: './src/worker/codex.ts',
   },
