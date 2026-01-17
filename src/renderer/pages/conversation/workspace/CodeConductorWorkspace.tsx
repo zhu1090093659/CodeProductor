@@ -8,10 +8,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Empty, Tabs } from '@arco-design/web-react';
 import { addEventListener } from '@/renderer/utils/emitter';
 import { ipcBridge } from '@/common';
-import LiveSpecTab from './LiveSpecTab';
 import TerminalTab from './TerminalTab';
 import DiffTab from './DiffTab';
-import { dispatchTerminalRunEvent } from '@/renderer/utils/terminalEvents';
 import type { PreviewLoadResult } from './utils/previewUtils';
 import CodePreview from '@/renderer/pages/conversation/preview/components/viewers/CodeViewer';
 import DiffPreview from '@/renderer/pages/conversation/preview/components/viewers/DiffViewer';
@@ -23,14 +21,12 @@ import PDFPreview from '@/renderer/pages/conversation/preview/components/viewers
 import PPTPreview from '@/renderer/pages/conversation/preview/components/viewers/PPTViewer';
 import WordPreview from '@/renderer/pages/conversation/preview/components/viewers/WordViewer';
 
-const TERMINAL_COMMAND = 'claude --prompt-file .ai/tasks/current_task.md';
-
 const normalizeWorkspacePath = (value: string) => value.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
 
 const CodeConductorWorkspace: React.FC<{
   workspace: string;
 }> = ({ workspace }) => {
-  const [activeTab, setActiveTab] = useState('spec');
+  const [activeTab, setActiveTab] = useState('preview');
   const [preview, setPreview] = useState<PreviewLoadResult | null>(null);
 
   useEffect(() => {
@@ -75,11 +71,6 @@ const CodeConductorWorkspace: React.FC<{
     });
   }, [workspace]);
 
-  const handleApproveExecute = useCallback(() => {
-    setActiveTab('terminal');
-    dispatchTerminalRunEvent({ workspace, command: TERMINAL_COMMAND });
-  }, [workspace]);
-
   const renderPreviewBody = () => {
     if (!preview) {
       return <Empty description='请选择文件预览' />;
@@ -101,11 +92,6 @@ const CodeConductorWorkspace: React.FC<{
   return (
     <div className='h-full w-full overflow-hidden flex flex-col min-h-0'>
       <Tabs activeTab={activeTab} onChange={setActiveTab} type='capsule' size='small' destroyOnHide={false} justify className='flex-1 min-h-0'>
-        <Tabs.TabPane key='spec' title='Live Spec'>
-          <div className='h-full min-h-0'>
-            <LiveSpecTab workspace={workspace} onApproveExecute={handleApproveExecute} />
-          </div>
-        </Tabs.TabPane>
         <Tabs.TabPane key='terminal' title='Terminal'>
           <div className='h-full min-h-0'>
             <TerminalTab workspace={workspace} active={activeTab === 'terminal'} />

@@ -12,7 +12,6 @@ import { initConversationBridge } from './conversationBridge';
 import { initDocumentBridge } from './documentBridge';
 import { initDatabaseBridge } from './databaseBridge';
 import { initDialogBridge } from './dialogBridge';
-import { initFileWatchBridge } from './fileWatchBridge';
 import { initFsBridge } from './fsBridge';
 import { initMcpBridge } from './mcpBridge';
 import { initModelBridge } from './modelBridge';
@@ -31,7 +30,6 @@ export function initAllBridges(): void {
   initDialogBridge();
   initShellBridge();
   initFsBridge();
-  initFileWatchBridge();
   initConversationBridge();
   initApplicationBridge();
   initAcpConversationBridge();
