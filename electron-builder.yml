@@ -75,6 +75,8 @@ files:
 extraResources:
   - from: public
     to: .
+  - from: resources/cc_logo.png
+    to: cc_logo.png
 
 win:
   target:
@@ -114,7 +116,7 @@ linux:
       arch: [x64, arm64] # armv7l
     - target: AppImage
       arch: [x64, arm64]
-  icon: resources/app.png
+  icon: resources/cc_logo.png
   artifactName: ${productName}-${version}-${os}-${arch}.${ext}
   category: Utility
   maintainer: codeconductor

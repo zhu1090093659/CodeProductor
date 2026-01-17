@@ -98,7 +98,7 @@ module.exports = {
       FileVersion: packageJson.version,
       ProductVersion: packageJson.version,
     },
-    icon: path.resolve(__dirname, 'resources/app'), // 应用图标路径
+    icon: process.platform === 'linux' ? path.resolve(__dirname, 'resources/cc_logo.png') : path.resolve(__dirname, 'resources/app'), // 应用图标路径
     // Windows 特定配置
     platform: process.env.npm_config_target_platform || process.platform,
     // Use target arch from build script, not host arch

@@ -151,6 +151,29 @@ const isResetPasswordMode = hasCommand('--resetpass');
 
 let mainWindow: BrowserWindow;
 
+const resolveAppWindowIconPath = (): string | null => {
+  // Prefer an explicit PNG for runtime window/taskbar icons (dev + packaged).
+  // This should not affect the installer/executable icon formats (.ico/.icns).
+  const candidates = [
+    path.resolve(__dirname, '..', '..', 'resources', 'cc_logo.png'),
+    path.join(process.resourcesPath, 'cc_logo.png'),
+    path.join(process.resourcesPath, 'resources', 'cc_logo.png'),
+    path.join(app.getAppPath(), 'resources', 'cc_logo.png'),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      if (fs.existsSync(candidate)) {
+        return candidate;
+      }
+    } catch {
+      // Ignore fs errors and keep trying other candidates.
+    }
+  }
+
+  return null;
+};
+
 const createWindow = (): void => {
   // Get primary display size
   const primaryDisplay = screen.getPrimaryDisplay();
@@ -159,12 +182,14 @@ const createWindow = (): void => {
   // Set window size to 80% (4/5) of screen size for better visibility on high-resolution displays
   const windowWidth = Math.floor(screenWidth * 0.8);
   const windowHeight = Math.floor(screenHeight * 0.8);
+  const windowIconPath = resolveAppWindowIconPath();
 
   // Create the browser window.
   mainWindow = new BrowserWindow({
     width: windowWidth,
     height: windowHeight,
     autoHideMenuBar: true,
+    ...(windowIconPath ? { icon: windowIconPath } : {}),
     // Custom titlebar configuration / 自定义标题栏配置
     ...(process.platform === 'darwin'
       ? {
