@@ -14,9 +14,10 @@ import { useConversationTabs } from '@/renderer/pages/conversation/context/Conve
 import { useProjects } from '@/renderer/hooks/useProjects';
 import { deleteProject, ensureProjectForWorkspace, renameProject, setActiveProjectId } from '@/renderer/utils/projectService';
 import { Empty, Input, Message, Modal, Popconfirm, Spin, Tree, Tooltip } from '@arco-design/web-react';
-import { DeleteOne, EditOne, Plus } from '@icon-park/react';
+import { DeleteOne, EditOne, FileText, FolderOpen, Plus } from '@icon-park/react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { iconColors } from '@/renderer/theme/colors';
 
 interface TreeNode {
   key: string;
@@ -286,7 +287,22 @@ const ProjectModePanel: React.FC = () => {
       ) : treeData.length === 0 ? (
         <Empty description={t('project.aiNotFound', { defaultValue: '未找到 .ai' })} />
       ) : (
-        <Tree treeData={treeData} onSelect={handleSelect} blockNode />
+        <Tree
+          className='workspace-tree !pl-12px !pr-12px'
+          treeData={treeData}
+          blockNode
+          renderTitle={(node) => {
+            const isFile = Boolean(node.isLeaf);
+            const icon = isFile ? <FileText theme='outline' size={14} fill={iconColors.secondary} className='flex-shrink-0' /> : <FolderOpen theme='outline' size={14} fill={iconColors.primary} className='flex-shrink-0' />;
+            return (
+              <span className='flex items-center gap-6px min-w-0' style={{ color: 'inherit' }}>
+                {icon}
+                <span className={`truncate ${isFile ? 'text-t-secondary font-normal' : 'text-t-primary font-medium'}`}>{String(node.title)}</span>
+              </span>
+            );
+          }}
+          onSelect={handleSelect}
+        />
       )}
     </div>
   );

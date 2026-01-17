@@ -165,14 +165,32 @@ body[arco-theme='dark'] .arco-message-error {
   background: linear-gradient(90deg, rgba(255, 221, 219, 0.3) 0%, rgba(255, 243, 240, 0.3) 100%) !important;
 }
 
-/* Workspace tree selection styles - use text color instead of background */
-.workspace-tree .arco-tree-node-selected .arco-tree-node-title {
-  background-color: transparent !important;
-}
-
 /* Workspace tree hover styles - more visible hover effect */
 .workspace-tree .arco-tree-node:hover .arco-tree-node-title {
   background-color: var(--color-fill-3) !important;
+}
+
+/* Workspace tree base aesthetics */
+.workspace-tree .arco-tree-node-title {
+  border-radius: 8px;
+  padding: 4px 8px;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+}
+
+/* Make selected state clearer without heavy background */
+.workspace-tree .arco-tree-node-selected .arco-tree-node-title {
+  background-color: var(--color-fill-2) !important;
+}
+
+/* Reduce line/indent visual noise */
+.workspace-tree .arco-tree-indent-unit {
+  width: 14px;
+}
+
+.workspace-tree .arco-tree-node-switcher {
+  width: 18px;
 }
 
 /* Alert styles - content is now displayed below the Alert card, so these rules are no longer needed */

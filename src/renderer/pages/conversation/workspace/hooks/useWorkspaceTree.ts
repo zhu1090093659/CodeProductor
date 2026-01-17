@@ -6,9 +6,10 @@
 
 import { ipcBridge } from '@/common';
 import type { IDirOrFile } from '@/common/ipcBridge';
+import { STORAGE_KEYS } from '@/common/storageKeys';
 import { emitter } from '@/renderer/utils/emitter';
 import { dispatchWorkspaceHasFilesEvent } from '@/renderer/utils/workspaceEvents';
-import { useCallback, useRef, useState } from 'react';
+import { type SetStateAction, useCallback, useRef, useState } from 'react';
 import type { SelectedNodeRef } from '../types';
 import { getFirstLevelKeys } from '../utils/treeHelpers';
 
@@ -17,6 +18,22 @@ interface UseWorkspaceTreeOptions {
   conversation_id: string;
   eventPrefix: 'acp' | 'codex';
 }
+
+const getExpandedKeysStorageKey = (workspace: string) => `${STORAGE_KEYS.WORKSPACE_TREE_EXPANDED_KEYS_PREFIX}${workspace}`;
+
+const loadPersistedExpandedKeys = (workspace: string): string[] | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(getExpandedKeysStorageKey(workspace));
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    if (!parsed.every((k) => typeof k === 'string')) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+};
 
 /**
  * useWorkspaceTree - 合并树状态管理和选择逻辑
@@ -27,19 +44,37 @@ export function useWorkspaceTree({ workspace, conversation_id, eventPrefix }: Us
   const [files, setFiles] = useState<IDirOrFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [treeKey, setTreeKey] = useState(Math.random());
-  const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
+  const [expandedKeys, setExpandedKeysState] = useState<string[]>([]);
 
   // Selection state / 选中状态
   const [selected, setSelected] = useState<string[]>([]);
 
+  const initSignatureRef = useRef<string>('');
+
   // 标记是否为首次加载（用于区分初始化和后续刷新）
   // Track if this is the first load (to distinguish initialization from subsequent refreshes)
   const isFirstLoadRef = useRef(true);
+  const isExpandedKeysInitializedRef = useRef(false);
   const selectedKeysRef = useRef<string[]>([]);
   const selectedNodeRef = useRef<SelectedNodeRef | null>(null);
 
   // Loading time tracker / 加载时间追踪
   const lastLoadingTime = useRef(Date.now());
+
+  const setExpandedKeysPersisted = useCallback(
+    (next: SetStateAction<string[]>) => {
+      setExpandedKeysState((prev) => {
+        const resolved = typeof next === 'function' ? (next as (p: string[]) => string[])(prev) : next;
+        try {
+          window.localStorage.setItem(getExpandedKeysStorageKey(workspace), JSON.stringify(resolved));
+        } catch {
+          // Ignore errors
+        }
+        return resolved;
+      });
+    },
+    [workspace]
+  );
 
   /**
    * 设置 loading 状态（带防抖，避免图标闪烁）
@@ -67,6 +102,13 @@ export function useWorkspaceTree({ workspace, conversation_id, eventPrefix }: Us
    */
   const loadWorkspace = useCallback(
     (path: string, search?: string) => {
+      const initSignature = `${conversation_id}::${workspace}`;
+      if (initSignatureRef.current !== initSignature) {
+        initSignatureRef.current = initSignature;
+        isFirstLoadRef.current = true;
+        isExpandedKeysInitializedRef.current = false;
+      }
+
       setLoadingHandler(true);
       return ipcBridge.conversation.getWorkspace
         .invoke({ path, workspace, conversation_id, search: search || '' })
@@ -78,9 +120,13 @@ export function useWorkspaceTree({ workspace, conversation_id, eventPrefix }: Us
             setTreeKey(Math.random());
           }
 
-          // 只展开第一层文件夹（根节点）
-          // Only expand first level folders (root node)
-          setExpandedKeys(getFirstLevelKeys(res));
+          // Initialize expanded keys only once (prefer persisted state)
+          // Only expand first level folders (root node) when no persisted state exists
+          if (!isExpandedKeysInitializedRef.current) {
+            const persisted = loadPersistedExpandedKeys(workspace);
+            setExpandedKeysState(persisted ?? getFirstLevelKeys(res));
+            isExpandedKeysInitializedRef.current = true;
+          }
 
           // 根据是否有文件决定工作空间面板的展开/折叠状态
           // Determine workspace panel expand/collapse state based on files
@@ -210,7 +256,8 @@ export function useWorkspaceTree({ workspace, conversation_id, eventPrefix }: Us
     // Actions / 操作
     setFiles,
     setTreeKey,
-    setExpandedKeys,
+    setExpandedKeys: setExpandedKeysState,
+    setExpandedKeysPersisted,
     setSelected,
     loadWorkspace,
     refreshWorkspace,

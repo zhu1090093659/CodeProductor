@@ -160,7 +160,7 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({ conversation_id, workspace, e
     t,
     setFiles: treeHook.setFiles,
     setSelected: treeHook.setSelected,
-    setExpandedKeys: treeHook.setExpandedKeys,
+    setExpandedKeys: treeHook.setExpandedKeysPersisted,
     selectedKeysRef: treeHook.selectedKeysRef,
     selectedNodeRef: treeHook.selectedNodeRef,
     ensureNodeSelected: treeHook.ensureNodeSelected,
@@ -849,12 +849,12 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({ conversation_id, workspace, e
                   </div>
                 ) : (
                   <Tree
-                    className={'!pl-32px !pr-16px workspace-tree'}
-                    showLine
+                    className={'!pl-12px !pr-12px workspace-tree'}
                     key={treeHook.treeKey}
                     selectedKeys={treeHook.selected}
                     expandedKeys={treeHook.expandedKeys}
                     treeData={treeData}
+                    blockNode
                     fieldNames={{
                       children: 'children',
                       title: 'name',
@@ -866,10 +866,11 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({ conversation_id, workspace, e
                       const relativePath = node.dataRef.relativePath;
                       const isFile = node.dataRef.isFile;
                       const isPasteTarget = !isFile && pasteHook.pasteTargetFolder === relativePath;
+                      const icon = isFile ? <FileText theme='outline' size={14} fill={iconColors.secondary} className='flex-shrink-0' /> : <FolderOpen theme='outline' size={14} fill={iconColors.primary} className='flex-shrink-0' />;
 
                       return (
                         <span
-                          className='flex items-center gap-4px'
+                          className='flex items-center gap-6px min-w-0'
                           style={{ color: 'inherit' }}
                           onDoubleClick={() => {
                             if (isFile) {
@@ -888,7 +889,8 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({ conversation_id, workspace, e
                             });
                           }}
                         >
-                          {node.title}
+                          {icon}
+                          <span className={`truncate ${isFile ? 'text-t-secondary font-normal' : 'text-t-primary font-medium'}`}>{node.title}</span>
                           {isPasteTarget && <span className='ml-1 text-xs text-blue-700 font-bold bg-blue-500 text-white px-1.5 py-0.5 rounded'>PASTE</span>}
                         </span>
                       );
@@ -950,7 +952,7 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({ conversation_id, workspace, e
                       emitter.emit(`${eventPrefix}.selected.file`, items);
                     }}
                     onExpand={(keys) => {
-                      treeHook.setExpandedKeys(keys);
+                      treeHook.setExpandedKeysPersisted(keys);
                     }}
                     loadMore={(treeNode) => {
                       const path = treeNode.props.dataRef.fullPath;
