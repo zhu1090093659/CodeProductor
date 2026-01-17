@@ -10,11 +10,12 @@ import type { TChatConversation } from '@/common/storage';
 import { uuid } from '@/common/utils';
 import fs from 'fs/promises';
 import path from 'path';
+import { copySkillsToAiWorkspace } from './services/skillProjectService';
 import { getSystemDir } from './initStorage';
 
 const ensureAiWorkspace = async (workspace: string) => {
   const aiRoot = path.join(workspace, '.ai');
-  const dirs = ['context', 'specs', 'tasks'];
+  const dirs = ['context', 'specs', 'tasks', 'skills'];
   await Promise.all(dirs.map((dir) => fs.mkdir(path.join(aiRoot, dir), { recursive: true })));
 
   const files: Array<{ path: string; content: string }> = [
@@ -55,7 +56,7 @@ const ensureAiWorkspace = async (workspace: string) => {
   );
 };
 
-const buildWorkspaceWidthFiles = async (defaultWorkspaceName: string, workspace?: string, defaultFiles?: string[], providedCustomWorkspace?: boolean) => {
+const buildWorkspaceWidthFiles = async (defaultWorkspaceName: string, workspace?: string, defaultFiles?: string[], providedCustomWorkspace?: boolean, enabledSkills?: string[]) => {
   // 使用前端提供的customWorkspace标志，如果没有则根据workspace参数判断
   const customWorkspace = providedCustomWorkspace !== undefined ? providedCustomWorkspace : !!workspace;
 
@@ -68,6 +69,13 @@ const buildWorkspaceWidthFiles = async (defaultWorkspaceName: string, workspace?
     workspace = path.resolve(workspace);
   }
   await ensureAiWorkspace(workspace);
+  // Sync selected skills into workspace/.ai/skills for workspace bridge usage
+  // Keep non-fatal to avoid blocking conversation creation
+  try {
+    await copySkillsToAiWorkspace(workspace, enabledSkills);
+  } catch (error) {
+    console.warn('[AionUi] Failed to sync skills into .ai workspace:', error);
+  }
 
   if (defaultFiles) {
     for (const file of defaultFiles) {
@@ -109,7 +117,7 @@ const buildWorkspaceWidthFiles = async (defaultWorkspaceName: string, workspace?
 
 export const createAcpAgent = async (options: ICreateConversationParams): Promise<TChatConversation> => {
   const { extra } = options;
-  const { workspace, customWorkspace } = await buildWorkspaceWidthFiles(`${extra.backend}-temp-${Date.now()}`, extra.workspace, extra.defaultFiles, extra.customWorkspace);
+  const { workspace, customWorkspace } = await buildWorkspaceWidthFiles(`${extra.backend}-temp-${Date.now()}`, extra.workspace, extra.defaultFiles, extra.customWorkspace, extra.enabledSkills);
   return {
     type: 'acp',
     extra: {
@@ -132,7 +140,7 @@ export const createAcpAgent = async (options: ICreateConversationParams): Promis
 
 export const createCodexAgent = async (options: ICreateConversationParams): Promise<TChatConversation> => {
   const { extra } = options;
-  const { workspace, customWorkspace } = await buildWorkspaceWidthFiles(`codex-temp-${Date.now()}`, extra.workspace, extra.defaultFiles, extra.customWorkspace);
+  const { workspace, customWorkspace } = await buildWorkspaceWidthFiles(`codex-temp-${Date.now()}`, extra.workspace, extra.defaultFiles, extra.customWorkspace, extra.enabledSkills);
   return {
     type: 'codex',
     extra: {
