@@ -7,7 +7,8 @@
 import type { IMessageAcpPermission } from '@/common/chatLib';
 import { conversation } from '@/common/ipcBridge';
 import { Button, Card, Radio, Typography } from '@arco-design/web-react';
-import React, { useState } from 'react';
+import { useConversationContextSafe } from '@/renderer/context/ConversationContext';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const { Text } = Typography;
@@ -19,6 +20,7 @@ interface MessageAcpPermissionProps {
 const MessageAcpPermission: React.FC<MessageAcpPermissionProps> = React.memo(({ message }) => {
   const { options = [], toolCall } = message.content || {};
   const { t } = useTranslation();
+  const conversationCtx = useConversationContextSafe();
 
   // 基于实际数据生成显示信息
   const getToolInfo = () => {
@@ -50,34 +52,85 @@ const MessageAcpPermission: React.FC<MessageAcpPermissionProps> = React.memo(({ 
   const [selected, setSelected] = useState<string | null>(null);
   const [isResponding, setIsResponding] = useState(false);
   const [hasResponded, setHasResponded] = useState(false);
+  const autoConfirmOnceRef = useRef(false);
 
-  const handleConfirm = async () => {
-    if (hasResponded || !selected) return;
+  const confirmWithKey = useCallback(
+    async (confirmKey: string): Promise<boolean> => {
+      if (hasResponded) return false;
+      if (!toolCall) return false;
 
-    setIsResponding(true);
-    try {
-      const invokeData = {
-        confirmKey: selected,
-        msg_id: message.id,
-        conversation_id: message.conversation_id,
-        callId: toolCall?.toolCallId || message.id, // 使用 toolCallId 或 message.id 作为 fallback
-      };
+      setIsResponding(true);
+      try {
+        const invokeData = {
+          confirmKey,
+          msg_id: message.id,
+          conversation_id: message.conversation_id,
+          callId: toolCall?.toolCallId || message.id, // 使用 toolCallId 或 message.id 作为 fallback
+        };
 
-      const result = await conversation.confirmMessage.invoke(invokeData);
+        const result = await conversation.confirmMessage.invoke(invokeData);
 
-      if (result.success) {
-        setHasResponded(true);
-      } else {
+        if (result.success) {
+          setHasResponded(true);
+          return true;
+        }
+
         // Handle failure case - could add error display here
         console.error('Failed to confirm permission:', result);
+        return false;
+      } catch (error) {
+        // Handle error case - could add error logging here
+        console.error('Error confirming permission:', error);
+        return false;
+      } finally {
+        setIsResponding(false);
       }
-    } catch (error) {
-      // Handle error case - could add error logging here
-      console.error('Error confirming permission:', error);
-    } finally {
-      setIsResponding(false);
-    }
+    },
+    [hasResponded, message.conversation_id, message.id, toolCall]
+  );
+
+  const handleConfirm = async () => {
+    if (!selected) return;
+    await confirmWithKey(selected);
   };
+
+  // Auto-approve permissions for Claude Code in workspace conversations to reduce prompt spam.
+  useEffect(() => {
+    if (autoConfirmOnceRef.current) return;
+    if (hasResponded) return;
+    if (!toolCall) return;
+    if (!conversationCtx?.workspace) return;
+    if (conversationCtx.type !== 'acp') return;
+    if (conversationCtx.backend !== 'claude') return;
+
+    const toolCallId = toolCall?.toolCallId || message.id;
+    const respondedKey = `acp_permission_responded_${message.conversation_id}_${toolCallId}`;
+    try {
+      if (localStorage.getItem(respondedKey) === 'true') return;
+    } catch {
+      // ignore storage errors
+    }
+
+    const allowAlways = options.find((o) => o.kind === 'allow_always')?.optionId;
+    const allowOnce = options.find((o) => o.kind === 'allow_once')?.optionId;
+    const choice = allowAlways || allowOnce;
+    if (!choice) return;
+
+    autoConfirmOnceRef.current = true;
+    setSelected(choice);
+    void confirmWithKey(choice)
+      .then((ok) => {
+        if (!ok) {
+          autoConfirmOnceRef.current = false;
+          return;
+        }
+        try {
+          localStorage.setItem(respondedKey, 'true');
+        } catch {
+          // ignore storage errors
+        }
+      });
+  }, [confirmWithKey, conversationCtx?.backend, conversationCtx?.type, conversationCtx?.workspace, hasResponded, message.conversation_id, message.id, options, toolCall]);
 
   if (!toolCall) {
     return null;

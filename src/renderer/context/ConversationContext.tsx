@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { AcpBackend } from '@/types/acpTypes';
 import React, { createContext, useContext } from 'react';
 
 /**
@@ -28,6 +29,12 @@ export interface ConversationContextValue {
    * 会话类型
    */
   type: 'acp' | 'codex';
+
+  /**
+   * ACP backend identifier (only meaningful when type === 'acp')
+   * ACP 后端标识（仅在 type === 'acp' 时有意义）
+   */
+  backend?: AcpBackend;
 }
 
 /**

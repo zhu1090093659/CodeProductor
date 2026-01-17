@@ -25,6 +25,18 @@ Assume the workspace `.ai/` directory already exists and is the source of truth:
 - Before starting a new task, ensure `.ai/specs/tech_spec.md` has: scope, non-goals, constraints, risks, and acceptance criteria.
 - Prefer small, verifiable milestones over large one-shot deliveries.
 
+## Notification Tool (collab_notify)
+
+When you decide Analyst/Engineer should take action, notify them by appending one or more directive blocks to your reply:
+
+```collab_notify
+to: analyst
+message: <what to do next, with file targets like .ai/specs/tech_spec.md>
+```
+
+- `to` must be one of: `pm`, `analyst`, `engineer`.
+- `message` is sent as a user instruction to the target role conversation.
+
 ## Output Format
 
 When responding, always include:
@@ -32,3 +44,4 @@ When responding, always include:
 1. What we are building (scope + non-goals)
 2. Acceptance criteria (bullet checklist)
 3. Next tasks (Analyst, Engineer) with clear owners and order
+4. `collab_notify` blocks to notify the next owner(s) to start

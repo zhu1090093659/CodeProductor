@@ -8,8 +8,9 @@ import { ipcBridge } from '@/common';
 import type { TMessage } from '@/common/chatLib';
 import type { TChatConversation } from '@/common/storage';
 import { transformMessage } from '@/common/chatLib';
+import { uuid } from '@/common/utils';
 import { Select, Tag } from '@arco-design/web-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MessageListProvider, useAddOrUpdateMessage, useUpdateMessageList } from '@/renderer/messages/hooks';
 import MessageList from '@/renderer/messages/MessageList';
 import AcpSendBox from '../acp/AcpSendBox';
@@ -19,6 +20,79 @@ import { ConversationProvider } from '@/renderer/context/ConversationContext';
 import FlexFullContainer from '@/renderer/components/FlexFullContainer';
 
 type CollabRole = 'pm' | 'analyst' | 'engineer';
+
+type CollabNotifyDirective = {
+  to: CollabRole;
+  message: string;
+};
+
+const COLL_NOTIFY_BLOCK_RE = /```collab_notify\s*\n([\s\S]*?)```/g;
+
+const parseCollabNotifyBlocks = (text: string): CollabNotifyDirective[] => {
+  if (!text) return [];
+  const directives: CollabNotifyDirective[] = [];
+
+  let match: RegExpExecArray | null;
+  // eslint-disable-next-line no-cond-assign
+  while ((match = COLL_NOTIFY_BLOCK_RE.exec(text))) {
+    const raw = match[1] || '';
+    const lines = raw
+      .split('\n')
+      .map((l) => l.trimEnd())
+      .filter((l) => l.trim().length > 0);
+
+    let to: CollabRole | null = null;
+    let message: string | null = null;
+    let messageStartIndex = -1;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.toLowerCase().startsWith('to:')) {
+        const v = line.slice('to:'.length).trim();
+        if (v === 'pm' || v === 'analyst' || v === 'engineer') {
+          to = v;
+        }
+        continue;
+      }
+      if (line.toLowerCase().startsWith('message:')) {
+        messageStartIndex = i;
+        message = line.slice('message:'.length).trim();
+        break;
+      }
+    }
+
+    if (messageStartIndex >= 0 && messageStartIndex + 1 < lines.length) {
+      const rest = lines
+        .slice(messageStartIndex + 1)
+        .join('\n')
+        .trim();
+      if (rest) {
+        message = message ? `${message}\n${rest}` : rest;
+      }
+    }
+
+    if (!to || !message || !message.trim()) continue;
+    directives.push({ to, message: message.trim() });
+  }
+
+  return directives;
+};
+
+type TextMessage = Extract<TMessage, { type: 'text' }>;
+
+const findLatestAssistantTextMessage = (messages: TMessage[] | undefined): TextMessage | null => {
+  if (!messages || messages.length === 0) return null;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (!m) continue;
+    if (m.type !== 'text') continue;
+    if (m.position !== 'left') continue;
+    const content = m.content.content;
+    if (!content || !content.trim()) continue;
+    return m;
+  }
+  return null;
+};
 
 const ROLE_LABEL: Record<CollabRole, string> = {
   pm: 'PM',
@@ -36,7 +110,15 @@ const CollabChatInner: React.FC<{ parentConversation: TChatConversation }> = ({ 
   const updateList = useUpdateMessageList();
   const addOrUpdateMessage = useAddOrUpdateMessage();
   const roleMap = (parentConversation.extra as any)?.collab?.roleMap as { pm: string; analyst: string; engineer: string } | undefined;
-  const [activeRole, setActiveRole] = useState<CollabRole>('engineer');
+  const [activeRole, setActiveRole] = useState<CollabRole>(() => {
+    const v = sessionStorage.getItem(`collab_active_role_${parentConversation.id}`);
+    return v === 'pm' || v === 'analyst' || v === 'engineer' ? v : 'engineer';
+  });
+  const notifyDedupRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    sessionStorage.setItem(`collab_active_role_${parentConversation.id}`, activeRole);
+  }, [activeRole, parentConversation.id]);
 
   const roleByConversationId = useMemo(() => {
     if (!roleMap) return new Map<string, CollabRole>();
@@ -77,8 +159,53 @@ const CollabChatInner: React.FC<{ parentConversation: TChatConversation }> = ({ 
   useEffect(() => {
     if (!roleMap) return;
     const children = new Set([roleMap.pm, roleMap.analyst, roleMap.engineer]);
+
+    const maybeDispatchNotify = async (sourceConversationId: string) => {
+      try {
+        const list = await ipcBridge.database.getConversationMessages.invoke({
+          conversation_id: sourceConversationId,
+          page: 0,
+          pageSize: 10000,
+        });
+        const lastAssistantText = findLatestAssistantTextMessage(list || []);
+        if (!lastAssistantText) return;
+        const dispatchKey = `${sourceConversationId}:${lastAssistantText.msg_id || lastAssistantText.id}`;
+        if (notifyDedupRef.current.has(dispatchKey)) return;
+        notifyDedupRef.current.add(dispatchKey);
+
+        const contentText = lastAssistantText.content?.content || '';
+        const directives = parseCollabNotifyBlocks(contentText);
+        if (directives.length === 0) return;
+
+        const roleToConversationId: Record<CollabRole, string> = {
+          pm: roleMap.pm,
+          analyst: roleMap.analyst,
+          engineer: roleMap.engineer,
+        };
+
+        await Promise.all(
+          directives.map(async (d) => {
+            const targetConversationId = roleToConversationId[d.to];
+            if (!targetConversationId) return;
+            await ipcBridge.conversation.sendMessage.invoke({
+              conversation_id: targetConversationId,
+              input: d.message,
+              msg_id: uuid(),
+              files: [],
+            });
+          })
+        );
+      } catch (error) {
+        console.error('[CollabChat] Failed to dispatch collab_notify:', error);
+      }
+    };
+
     const handle = (message: { type: string; conversation_id: string; msg_id: string; data: unknown }) => {
       if (!children.has(message.conversation_id)) return;
+      if (message.type === 'finish') {
+        void maybeDispatchNotify(message.conversation_id);
+        return;
+      }
       // Active role is already handled by the active SendBox stream handler.
       if (activeConversationId && message.conversation_id === activeConversationId) return;
       const transformed = transformMessage(message as any);
@@ -115,7 +242,14 @@ const CollabChatInner: React.FC<{ parentConversation: TChatConversation }> = ({ 
   }
 
   return (
-    <ConversationProvider value={{ conversationId: activeConversationId, workspace, type: parentConversation.type }}>
+    <ConversationProvider
+      value={{
+        conversationId: activeConversationId,
+        workspace,
+        type: parentConversation.type,
+        backend: parentConversation.type === 'acp' ? ((parentConversation.extra as any)?.backend as AcpBackend) : undefined,
+      }}
+    >
       <div className='flex-1 min-h-0 flex flex-col px-20px'>
         <div className='flex items-center justify-between mb-10px'>
           <div className='text-sm text-t-secondary'>Merged roles</div>

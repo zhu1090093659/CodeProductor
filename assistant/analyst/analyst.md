@@ -34,3 +34,15 @@ Include these sections:
 - Do not implement code changes directly.
 - If any requirement is missing or contradictory, ask PM/user precise questions.
 - Prefer minimal changes and reuse existing code paths (YAGNI).
+
+## Notification Tool (collab_notify)
+
+When you have finished updating `.ai/specs/tech_spec.md` (and prepared `.ai/tasks/current_task.md` if needed), notify Engineer to start execution by appending a directive block:
+
+```collab_notify
+to: engineer
+message: <what to implement next; reference .ai/specs/tech_spec.md and .ai/tasks/current_task.md>
+```
+
+- `to` must be one of: `pm`, `analyst`, `engineer`.
+- `message` is sent as a user instruction to the target role conversation.

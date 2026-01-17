@@ -12,6 +12,7 @@ import http from 'node:http';
 import { app } from 'electron';
 import { ipcBridge } from '../../common';
 import { getSystemDir, getAssistantsDir, getSkillsDir } from '../initStorage';
+import { ASSISTANT_PRESETS } from '@/common/presets/assistantPresets';
 import { listAvailableSkills } from '../services/skillFileService';
 import { readDirectoryRecursive } from '../utils';
 
@@ -577,7 +578,47 @@ export function initFsBridge(): void {
   // 读取助手规则文件 / Read assistant rule file from user directory or builtin rules
   ipcBridge.fs.readAssistantRule.provider(async ({ assistantId, locale = 'en-US' }) => {
     try {
-      return await readAssistantResource('rules', assistantId, locale, ruleFilePattern);
+      const content = await readAssistantResource('rules', assistantId, locale, ruleFilePattern);
+      if (content) return content;
+
+      // Fallback for built-in assistants: read from preset resourceDir directly.
+      // This covers cases where initBuiltinAssistantRules didn't copy files successfully
+      // (e.g., missing packaged resources or unexpected dev paths).
+      if (assistantId.startsWith('builtin-')) {
+        const presetId = assistantId.slice('builtin-'.length);
+        const preset = ASSISTANT_PRESETS.find((p) => p.id === presetId);
+        if (preset?.resourceDir && preset.ruleFiles) {
+          const candidates = ((): string[] => {
+            const appPath = app.getAppPath();
+            if (app.isPackaged) return [path.join(appPath, preset.resourceDir!)];
+            return [path.join(appPath, preset.resourceDir!), path.join(appPath, '..', preset.resourceDir!), path.join(appPath, '..', '..', preset.resourceDir!), path.join(appPath, '..', '..', '..', preset.resourceDir!), path.join(process.cwd(), preset.resourceDir!)];
+          })();
+
+          const locales = [locale, 'en-US', 'zh-CN'].filter((l, i, arr) => arr.indexOf(l) === i);
+          const resolveRuleFile = (loc: string): string | undefined => {
+            const ruleFiles = preset.ruleFiles as Record<string, string>;
+            return ruleFiles[loc] || ruleFiles['en-US'] || ruleFiles['zh-CN'];
+          };
+
+          for (const dir of candidates) {
+            for (const loc of locales) {
+              const ruleFile = resolveRuleFile(loc);
+              if (!ruleFile) continue;
+              const sourceRulesPath = path.join(dir, ruleFile);
+              try {
+                let fallbackContent = await fs.readFile(sourceRulesPath, 'utf-8');
+                // Keep consistent with initBuiltinAssistantRules: rewrite skill script relative paths.
+                fallbackContent = fallbackContent.replace(/skills\//g, getSkillsDir() + '/');
+                return fallbackContent;
+              } catch {
+                // Try next candidate/locale
+              }
+            }
+          }
+        }
+      }
+
+      return '';
     } catch (error) {
       console.error('Failed to read assistant rule:', error);
       throw error;

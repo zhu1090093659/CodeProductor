@@ -12,7 +12,7 @@ import type { TChatConversation } from '@/common/storage';
 import { uuid } from '@/common/utils';
 import { Button, Dropdown, Menu, Tooltip, Typography } from '@arco-design/web-react';
 import { History } from '@icon-park/react';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import useSWR, { mutate } from 'swr';
@@ -145,6 +145,143 @@ const ChatConversation: React.FC<{
     });
   }, [conversation?.id, conversation?.type]);
 
+  const enableCollab = useCallback(async (): Promise<CollabRoleMap | null> => {
+    if (!conversation?.id) return null;
+    if (!conversation.extra?.workspace) return null;
+    const extra = conversation.extra as { collab?: unknown; collabParentId?: string };
+    if (extra?.collabParentId) return null;
+    if (extra?.collab) return null;
+
+    try {
+      const locale = i18n.language || 'en-US';
+      const parentId = conversation.id;
+      const now = Date.now();
+
+      const ruleContents = await Promise.all(
+        COLLAB_ROLES.map(async (r) => {
+          try {
+            const content = await ipcBridge.fs.readAssistantRule.invoke({ assistantId: r.assistantId, locale });
+            return content || '';
+          } catch {
+            return '';
+          }
+        })
+      );
+
+      const created = await Promise.all(
+        COLLAB_ROLES.map(async (r, idx) => {
+          const childId = uuid();
+          const presetContext = ruleContents[idx] || '';
+          const name = `[${r.namePrefix}] ${conversation.name || t('conversation.welcome.newConversation')}`;
+
+          const childConversation: TChatConversation =
+            conversation.type === 'acp'
+              ? {
+                  ...conversation,
+                  type: 'acp',
+                  id: childId,
+                  name,
+                  createTime: now,
+                  modifyTime: now,
+                  extra: {
+                    ...(conversation.extra as Extract<TChatConversation, { type: 'acp' }>['extra']),
+                    presetAssistantId: r.assistantId,
+                    presetContext,
+                    collabParentId: parentId,
+                  },
+                }
+              : {
+                  ...conversation,
+                  type: 'codex',
+                  id: childId,
+                  name,
+                  createTime: now,
+                  modifyTime: now,
+                  extra: {
+                    ...(conversation.extra as Extract<TChatConversation, { type: 'codex' }>['extra']),
+                    presetAssistantId: r.assistantId,
+                    presetContext,
+                    collabParentId: parentId,
+                  },
+                };
+          await ipcBridge.conversation.createWithConversation.invoke({ conversation: childConversation });
+          return { role: r.role, id: childId };
+        })
+      );
+
+      const roleMap = created.reduce((acc, item) => {
+        acc[item.role] = item.id;
+        return acc;
+      }, {} as CollabRoleMap);
+
+      await ipcBridge.conversation.update.invoke({
+        id: parentId,
+        updates: {
+          extra: {
+            collab: { roleMap },
+          },
+        } as Partial<TChatConversation>,
+        mergeExtra: true,
+      });
+
+      emitter.emit('chat.history.refresh');
+      await mutate(`conversation/${parentId}`);
+      return roleMap;
+    } catch (error) {
+      console.error('Failed to enable collaboration:', error);
+      return null;
+    }
+  }, [conversation, i18n.language, t]);
+
+  // Auto-enable collab when requested from welcome page.
+  useEffect(() => {
+    if (!conversation?.id) return;
+    const parentId = conversation.id;
+    const flagKey = `collab_auto_enable_${parentId}`;
+    const requested = sessionStorage.getItem(flagKey) === '1';
+    if (!requested) return;
+
+    const extra = conversation.extra as { collab?: unknown; collabParentId?: string } | undefined;
+    if (!conversation.extra?.workspace) return;
+    if (extra?.collabParentId) return;
+    if (extra?.collab) {
+      sessionStorage.removeItem(flagKey);
+      return;
+    }
+
+    const desiredRole = ((): CollabRole => {
+      const v = sessionStorage.getItem(`collab_active_role_${parentId}`);
+      return v === 'pm' || v === 'analyst' || v === 'engineer' ? v : 'pm';
+    })();
+
+    void (async () => {
+      const roleMap = await enableCollab();
+      if (!roleMap) return;
+
+      // Move initial message from parent to the desired child conversation so SendBox can pick it up.
+      const childId = roleMap[desiredRole];
+      if (conversation.type === 'acp') {
+        const key = `acp_initial_message_${parentId}`;
+        const value = sessionStorage.getItem(key);
+        if (value) {
+          sessionStorage.setItem(`acp_initial_message_${childId}`, value);
+          sessionStorage.removeItem(key);
+        }
+      } else if (conversation.type === 'codex') {
+        const key = `codex_initial_message_${parentId}`;
+        const value = sessionStorage.getItem(key);
+        if (value) {
+          sessionStorage.setItem(`codex_initial_message_${childId}`, value);
+          sessionStorage.removeItem(key);
+        }
+        // Defensive: clear any processed key for parent if present.
+        sessionStorage.removeItem(`codex_initial_processed_${parentId}`);
+      }
+
+      sessionStorage.removeItem(flagKey);
+    })();
+  }, [conversation, enableCollab]);
+
   const headerExtra = useMemo(() => {
     if (!conversation?.id) return null;
     if (!conversation.extra?.workspace) return null;
@@ -153,86 +290,6 @@ const ChatConversation: React.FC<{
     if (extra?.collabParentId) return null; // child is hidden/redirected
     if (extra?.collab) return null; // already enabled
 
-    const enableCollab = async () => {
-      try {
-        const locale = i18n.language || 'en-US';
-        const parentId = conversation.id;
-        const now = Date.now();
-
-        const ruleContents = await Promise.all(
-          COLLAB_ROLES.map(async (r) => {
-            try {
-              const content = await ipcBridge.fs.readAssistantRule.invoke({ assistantId: r.assistantId, locale });
-              return content || '';
-            } catch {
-              return '';
-            }
-          })
-        );
-
-        const created = await Promise.all(
-          COLLAB_ROLES.map(async (r, idx) => {
-            const childId = uuid();
-            const presetContext = ruleContents[idx] || '';
-            const name = `[${r.namePrefix}] ${conversation.name || t('conversation.welcome.newConversation')}`;
-
-            const childConversation: TChatConversation =
-              conversation.type === 'acp'
-                ? {
-                    ...conversation,
-                    type: 'acp',
-                    id: childId,
-                    name,
-                    createTime: now,
-                    modifyTime: now,
-                    extra: {
-                      ...(conversation.extra as Extract<TChatConversation, { type: 'acp' }>['extra']),
-                      presetAssistantId: r.assistantId,
-                      presetContext,
-                      collabParentId: parentId,
-                    },
-                  }
-                : {
-                    ...conversation,
-                    type: 'codex',
-                    id: childId,
-                    name,
-                    createTime: now,
-                    modifyTime: now,
-                    extra: {
-                      ...(conversation.extra as Extract<TChatConversation, { type: 'codex' }>['extra']),
-                      presetAssistantId: r.assistantId,
-                      presetContext,
-                      collabParentId: parentId,
-                    },
-                  };
-            await ipcBridge.conversation.createWithConversation.invoke({ conversation: childConversation });
-            return { role: r.role, id: childId };
-          })
-        );
-
-        const roleMap = created.reduce((acc, item) => {
-          acc[item.role] = item.id;
-          return acc;
-        }, {} as CollabRoleMap);
-
-        await ipcBridge.conversation.update.invoke({
-          id: parentId,
-          updates: {
-            extra: {
-              collab: { roleMap },
-            },
-          } as Partial<TChatConversation>,
-          mergeExtra: true,
-        });
-
-        emitter.emit('chat.history.refresh');
-        await mutate(`conversation/${parentId}`);
-      } catch (error) {
-        console.error('Failed to enable collaboration:', error);
-      }
-    };
-
     return (
       <Tooltip content='Enable PM/Analyst/Engineer collaboration'>
         <Button size='mini' onClick={() => void enableCollab()}>
@@ -240,7 +297,7 @@ const ChatConversation: React.FC<{
         </Button>
       </Tooltip>
     );
-  }, [conversation, i18n.language, t]);
+  }, [conversation, enableCollab]);
 
   // 获取预设助手信息（如果有）/ Get preset assistant info for ACP/Codex conversations
   const presetAssistantInfo = useMemo(() => {

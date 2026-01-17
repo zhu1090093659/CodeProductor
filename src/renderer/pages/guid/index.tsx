@@ -8,7 +8,7 @@ import { ipcBridge } from '@/common';
 import { ASSISTANT_PRESETS } from '@/common/presets/assistantPresets';
 import type { CliProviderTarget, CliProvidersStorage, IProvider, ProjectInfo, TProviderWithModel } from '@/common/storage';
 import { ConfigStorage } from '@/common/storage';
-import { uuid, resolveLocaleKey } from '@/common/utils';
+import { resolveLocaleKey } from '@/common/utils';
 import { useProjects } from '@/renderer/hooks/useProjects';
 import { useConversationTabs } from '@/renderer/pages/conversation/context/ConversationTabsContext';
 import { ensureProjectForWorkspace } from '@/renderer/utils/projectService';
@@ -32,7 +32,6 @@ import useModeModeList from '@/renderer/hooks/useModeModeList';
 import { CLAUDE_PROVIDER_PRESETS } from '@/renderer/config/cliProviders/claudePresets';
 import { CODEX_PROVIDER_PRESETS } from '@/renderer/config/cliProviders/codexPresets';
 import { allSupportedExts, type FileMetadata, getCleanFileNames } from '@/renderer/services/FileService';
-import { buildDisplayMessage } from '@/renderer/utils/messageFiles';
 import { iconColors } from '@/renderer/theme/colors';
 import { emitter } from '@/renderer/utils/emitter';
 import { hasSpecificModelCapability } from '@/renderer/utils/modelCapabilities';
@@ -212,6 +211,7 @@ const Guid: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [files, setFiles] = useState<string[]>([]);
   const [dir, setDir] = useState<string>('');
+  const [collabMode, setCollabMode] = useState(false);
   const { activeProject } = useProjects();
   const dirRef = useRef('');
   const lastProjectWorkspaceRef = useRef<string | null>(null);
@@ -310,6 +310,7 @@ const Guid: React.FC = () => {
   // 获取选中的后端类型（向后兼容）/ Get the selected backend type (for backward compatibility)
   const selectedAgent = selectedAgentKey.startsWith('custom:') ? 'custom' : (selectedAgentKey as AcpBackend);
   const selectedAgentInfo = useMemo(() => findAgentByKey(selectedAgentKey), [selectedAgentKey, availableAgents]);
+  // eslint-disable-next-line max-len
   const { modelList, isConfigured: isCliProviderConfigured, hasCliTarget: hasCliProviderTarget, hasEnabledModels: hasCliProviderEnabledModels, isLoading: isCliProviderLoading } = useModelList(selectedAgentKey, selectedAgentInfo?.presetAgentType || null);
   const isPresetAgent = Boolean(selectedAgentInfo?.isPreset);
   const [isPlusDropdownOpen, setIsPlusDropdownOpen] = useState(false);
@@ -653,16 +654,6 @@ const Guid: React.FC = () => {
     [localeKey]
   );
 
-  // 保持向后兼容的 resolvePresetContext（只返回 rules）
-  // Backward compatible resolvePresetContext (returns only rules)
-  const resolvePresetContext = useCallback(
-    async (agentInfo: { backend: AcpBackend; customAgentId?: string; context?: string } | undefined): Promise<string | undefined> => {
-      const { rules } = await resolvePresetRulesAndSkills(agentInfo);
-      return rules;
-    },
-    [resolvePresetRulesAndSkills]
-  );
-
   const resolvePresetAgentType = useCallback(
     (agentInfo: { backend: AcpBackend; customAgentId?: string } | undefined) => {
       if (!agentInfo) return 'claude';
@@ -800,6 +791,10 @@ const Guid: React.FC = () => {
           files: files.length > 0 ? files : undefined,
         };
         sessionStorage.setItem(`codex_initial_message_${conversation.id}`, JSON.stringify(initialMessage));
+        if (collabMode) {
+          sessionStorage.setItem(`collab_auto_enable_${conversation.id}`, '1');
+          sessionStorage.setItem(`collab_active_role_${conversation.id}`, 'pm');
+        }
 
         // 然后导航到会话页面
         await navigate(`/conversation/${conversation.id}`);
@@ -871,6 +866,10 @@ const Guid: React.FC = () => {
 
       // Store initial message in sessionStorage to be picked up by the conversation page
       sessionStorage.setItem(`acp_initial_message_${conversation.id}`, JSON.stringify(initialMessage));
+      if (collabMode) {
+        sessionStorage.setItem(`collab_auto_enable_${conversation.id}`, '1');
+        sessionStorage.setItem(`collab_active_role_${conversation.id}`, 'pm');
+      }
 
       // 然后导航到会话页面
       await navigate(`/conversation/${conversation.id}`);
@@ -1052,22 +1051,8 @@ const Guid: React.FC = () => {
         sendMessageHandler();
       }
     },
-    [
-      activeCommandIndex,
-      applyCommandSelection,
-      filteredCommands,
-      filteredMentionOptions,
-      input,
-      isCommandMenuOpen,
-      isComposing,
-      mentionActiveIndex,
-      mentionOpen,
-      mentionQuery,
-      mentionSelectorOpen,
-      mentionSelectorVisible,
-      selectMentionAgent,
-      sendMessageHandler,
-    ]
+    // eslint-disable-next-line max-len
+    [activeCommandIndex, applyCommandSelection, filteredCommands, filteredMentionOptions, input, isCommandMenuOpen, isComposing, mentionActiveIndex, mentionOpen, mentionQuery, mentionSelectorOpen, mentionSelectorVisible, selectMentionAgent, sendMessageHandler]
   );
   const setDefaultModel = async () => {
     if (!modelList || modelList.length === 0) {
@@ -1328,10 +1313,14 @@ const Guid: React.FC = () => {
                             .invoke({ properties: ['openDirectory'] })
                             .then((files) => {
                               if (files && files[0]) {
-                                ensureProjectForWorkspace(files[0]).then((project) => {
-                                  setDir(project.workspace);
-                                  lastProjectWorkspaceRef.current = project.workspace;
-                                });
+                                void ensureProjectForWorkspace(files[0])
+                                  .then((project) => {
+                                    setDir(project.workspace);
+                                    lastProjectWorkspaceRef.current = project.workspace;
+                                  })
+                                  .catch((error) => {
+                                    console.error('Failed to ensure project for workspace:', error);
+                                  });
                               }
                             })
                             .catch((error) => {
@@ -1413,13 +1402,14 @@ const Guid: React.FC = () => {
                   }
                 >
                   <Button className={'sendbox-model-btn'} shape='round'>
-                    {currentModel
-                      ? currentModel.id?.startsWith('cli:') && currentModel.useModel === 'default'
-                        ? t('common.default')
-                        : currentModel.useModel
-                      : t('conversation.welcome.selectModel')}
+                    {currentModel ? (currentModel.id?.startsWith('cli:') && currentModel.useModel === 'default' ? t('common.default') : currentModel.useModel) : t('conversation.welcome.selectModel')}
                   </Button>
                 </Dropdown>
+                <Tooltip content={localeKey.startsWith('zh') ? '协作模式 (PM/Analyst/Engineer)' : 'Collaboration mode (PM/Analyst/Engineer)'}>
+                  <Button shape='round' type={collabMode ? 'primary' : 'secondary'} onClick={() => setCollabMode((prev) => !prev)} className='ml-8px'>
+                    {localeKey.startsWith('zh') ? '协作' : 'Collab'}
+                  </Button>
+                </Tooltip>
               </div>
               <div className={styles.actionSubmit}>
                 <Button

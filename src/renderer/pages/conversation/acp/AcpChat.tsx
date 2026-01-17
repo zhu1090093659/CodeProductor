@@ -21,7 +21,7 @@ const AcpChat: React.FC<{
   useMessageLstCache(conversation_id);
 
   return (
-    <ConversationProvider value={{ conversationId: conversation_id, workspace, type: 'acp' }}>
+    <ConversationProvider value={{ conversationId: conversation_id, workspace, type: 'acp', backend }}>
       <div className='flex-1 flex flex-col px-20px'>
         <FlexFullContainer>
           <MessageList className='flex-1'></MessageList>

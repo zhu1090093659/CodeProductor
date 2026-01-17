@@ -7,9 +7,10 @@
 import type { BaseCodexPermissionRequest } from '@/common/codex/types';
 import { Button, Card, Radio, Typography } from '@arco-design/web-react';
 import type { ReactNode } from 'react';
-import React, { useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useConfirmationHandler, usePermissionState, usePermissionStorageCleanup } from '@/common/codex/utils/permissionUtils';
+import { useConversationContextSafe } from '@/renderer/context/ConversationContext';
 
 const { Text } = Typography;
 
@@ -25,64 +26,55 @@ interface BasePermissionDisplayProps {
 const BasePermissionDisplay: React.FC<BasePermissionDisplayProps> = React.memo(({ content, messageId, conversationId, icon, title, children }) => {
   const { options = [], data } = content;
   const { t } = useTranslation();
+  const conversationCtx = useConversationContextSafe();
 
   const { handleConfirmation } = useConfirmationHandler();
   const { cleanupOldPermissionStorage } = usePermissionStorageCleanup();
 
-  // 直接使用 call_id 作为权限标识，确保每个请求唯一
-  const permissionId = data.call_id;
+  const permissionSubtype = useMemo(() => {
+    const subtype = (content as unknown as { subtype?: string })?.subtype;
+    return subtype || 'unknown';
+  }, [content]);
 
-  // 全局权限选择key（基于权限类型）
-  const globalPermissionKey = `codex_global_permission_choice_${permissionId}`;
+  // Global permission choice key: scoped to conversation + permission subtype (exec/apply_patch).
+  // This avoids "allow always" being reset on every request due to unique call_id.
+  const globalPermissionKey = `codex_global_permission_choice_${conversationId}_${permissionSubtype}`;
 
   // 具体权限请求响应key（基于具体的callId）
-  const specificResponseKey = `codex_permission_responded_${data.call_id || messageId}`;
+  const specificResponseKey = `codex_permission_responded_${conversationId}_${data.call_id || messageId}`;
 
   // 使用正确的keys：全局权限选择 + 具体请求响应
   const { selected, setSelected, hasResponded, setHasResponded } = usePermissionState(globalPermissionKey, specificResponseKey);
 
   const [isResponding, setIsResponding] = useState(false);
 
-  // Check if we have an "always" permission stored and should auto-handle
-  const [shouldAutoHandle] = useState<string | null>(() => {
-    try {
-      const storedChoice = localStorage.getItem(globalPermissionKey);
-      if (storedChoice === 'allow_always' || storedChoice === 'reject_always') {
-        const alreadyResponded = localStorage.getItem(specificResponseKey) === 'true';
-        if (!alreadyResponded) {
-          return storedChoice;
-        }
-      }
-    } catch (error) {
-      // localStorage error
-    }
-    return null;
-  });
-
   // 组件挂载时清理旧存储
   useEffect(() => {
     // 清理超过7天的旧权限存储
     cleanupOldPermissionStorage();
-  }, [permissionId]); // 只在permissionId变化时执行
+  }, [cleanupOldPermissionStorage]); // run once per mount
 
-  // 备用检查：组件挂载时检查是否有 always 权限（如果第一个没有捕获）
+  // Determine workspace auto-approval policy.
+  const shouldAutoApproveInWorkspace = Boolean(conversationCtx?.workspace && conversationCtx.type === 'codex');
+
+  // Load stored choice on mount; if none and workspace auto-approve is enabled, default to allow_always.
   useEffect(() => {
-    const checkStoredChoice = () => {
-      if (hasResponded) return;
-
-      try {
-        const storedChoice = localStorage.getItem(globalPermissionKey);
-        // 只设置选中状态，不自动确认
-        if (storedChoice && !selected) {
-          setSelected(storedChoice);
-        }
-      } catch (error) {
-        // Handle error silently
+    if (hasResponded || selected) return;
+    try {
+      const storedChoice = localStorage.getItem(globalPermissionKey);
+      if (storedChoice) {
+        setSelected(storedChoice);
+        return;
       }
-    };
-
-    checkStoredChoice();
-  }, [permissionId, hasResponded, globalPermissionKey, selected]);
+      if (shouldAutoApproveInWorkspace) {
+        setSelected('allow_always');
+        localStorage.setItem(globalPermissionKey, 'allow_always');
+        localStorage.setItem(`${globalPermissionKey}_timestamp`, Date.now().toString());
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, [globalPermissionKey, hasResponded, selected, setSelected, shouldAutoApproveInWorkspace]);
 
   // 保存选择状态到 localStorage
   const handleSelectionChange = (value: string) => {
@@ -95,8 +87,8 @@ const BasePermissionDisplay: React.FC<BasePermissionDisplayProps> = React.memo((
     }
   };
 
-  const handleConfirm = async () => {
-    if (hasResponded || !selected) return;
+  const handleConfirm = async (): Promise<boolean> => {
+    if (hasResponded || !selected) return false;
 
     setIsResponding(true);
     try {
@@ -121,18 +113,36 @@ const BasePermissionDisplay: React.FC<BasePermissionDisplayProps> = React.memo((
         } catch {
           // Error saving response to localStorage
         }
+        return true;
       } else {
         // Handle failure case - could add error display here
+        return false;
       }
     } catch (error) {
       // Handle error case - could add error logging here
+      return false;
     } finally {
       setIsResponding(false);
     }
   };
 
-  // Don't render UI if already responded or if auto-handling
-  const shouldShowAutoHandling = shouldAutoHandle && !hasResponded;
+  // Auto-confirm once when an "always" choice is selected (either by user or workspace policy).
+  const autoConfirmOnceRef = useRef(false);
+  useEffect(() => {
+    if (autoConfirmOnceRef.current) return;
+    if (hasResponded) return;
+    if (!selected) return;
+    if (selected !== 'allow_always') return;
+    autoConfirmOnceRef.current = true;
+    void handleConfirm().then((ok) => {
+      if (!ok) {
+        autoConfirmOnceRef.current = false;
+      }
+    });
+  }, [hasResponded, selected]);
+
+  // When auto-confirming, show a minimal card instead of full UI.
+  const shouldShowAutoHandling = !hasResponded && selected === 'allow_always';
 
   if (shouldShowAutoHandling) {
     return (
@@ -178,7 +188,7 @@ const BasePermissionDisplay: React.FC<BasePermissionDisplayProps> = React.memo((
               )}
             </Radio.Group>
             <div className='flex justify-start pl-20px'>
-              <Button type='primary' size='mini' disabled={!selected || isResponding} onClick={handleConfirm}>
+              <Button type='primary' size='mini' disabled={!selected || isResponding} onClick={() => void handleConfirm()}>
                 {isResponding ? t('codex.permissions.processing') : t('messages.confirm', { defaultValue: 'Confirm' })}
               </Button>
             </div>
