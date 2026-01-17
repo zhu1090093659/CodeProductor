@@ -42,17 +42,51 @@ export async function applyCliProvider(payload: CliProviderApplyPayload): Promis
 
   if (payload.target === 'claude') {
     const current = await readJson(paths.claudeSettings);
-    const env = { ...(current.env as Record<string, string> | undefined), ...payload.env };
+    const existingEnv = { ...(current.env as Record<string, string> | undefined) };
+    if (Array.isArray(payload.clearEnvKeys) && payload.clearEnvKeys.length > 0) {
+      for (const key of payload.clearEnvKeys) {
+        delete existingEnv[key];
+      }
+    }
+    const env = { ...existingEnv, ...payload.env };
     await writeJson(paths.claudeSettings, { ...current, env });
     return;
   }
 
   if (payload.target === 'codex') {
-    const auth = payload.auth || {};
-    await writeJson(paths.codexAuth, auth as Record<string, unknown>);
+    const shouldPatchAuth =
+      (payload.authPatch && Object.keys(payload.authPatch).length > 0) ||
+      (Array.isArray(payload.clearAuthKeys) && payload.clearAuthKeys.length > 0);
+
+    if (shouldPatchAuth) {
+      const currentAuth = await readJson(paths.codexAuth);
+      const nextAuth = { ...currentAuth };
+
+      if (Array.isArray(payload.clearAuthKeys) && payload.clearAuthKeys.length > 0) {
+        for (const key of payload.clearAuthKeys) {
+          delete nextAuth[key];
+        }
+      }
+      if (payload.authPatch) {
+        Object.assign(nextAuth, payload.authPatch);
+      }
+
+      await writeJson(paths.codexAuth, nextAuth as Record<string, unknown>);
+    }
+
+    if (payload.clearConfigToml) {
+      try {
+        await fs.unlink(paths.codexConfig);
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
     if (payload.configToml && payload.configToml.trim()) {
       await ensureDir(paths.codexConfig);
       await fs.writeFile(paths.codexConfig, payload.configToml, 'utf-8');
+      return;
     }
     return;
   }

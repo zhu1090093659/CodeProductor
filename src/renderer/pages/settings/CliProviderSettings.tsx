@@ -22,6 +22,9 @@ type ProviderPreset = {
   endpointCandidates?: string[];
   settingsConfig?: { env?: Record<string, string | number> };
   templateValues?: Record<string, { label: string; placeholder: string; defaultValue?: string }>;
+  category?: string;
+  isOfficial?: boolean;
+  apiKeyField?: 'ANTHROPIC_AUTH_TOKEN' | 'ANTHROPIC_API_KEY';
 };
 
 const DEFAULT_CONFIG: CliProvidersStorage = {
@@ -74,6 +77,10 @@ const patchCodexConfig = (baseConfig: string, baseUrl?: string, model?: string) 
   return next;
 };
 
+const isOfficialCliPreset = (preset?: ProviderPreset) => {
+  return preset?.category === 'official';
+};
+
 const CliProviderSettings: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const { t } = useTranslation();
   const [message, messageContext] = Message.useMessage();
@@ -107,7 +114,19 @@ const CliProviderSettings: React.FC<{ embedded?: boolean }> = ({ embedded = fals
         const preset = CLAUDE_PROVIDER_PRESETS.find((p) => p.name === config.presetName);
         if (!preset) return;
         const env = buildClaudeEnv(preset, config);
-        const result = await applyProvider({ target, env });
+        const shouldUseOfficial = isOfficialCliPreset(preset) && !config.apiKey;
+        const clearEnvKeys = shouldUseOfficial
+          ? [
+              'ANTHROPIC_AUTH_TOKEN',
+              'ANTHROPIC_API_KEY',
+              'ANTHROPIC_BASE_URL',
+              'ANTHROPIC_MODEL',
+              'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+              'ANTHROPIC_DEFAULT_SONNET_MODEL',
+              'ANTHROPIC_DEFAULT_OPUS_MODEL',
+            ]
+          : undefined;
+        const result = await applyProvider({ target, env, clearEnvKeys });
         if (result.success) {
           message.success('Claude Code settings updated');
         } else {
@@ -118,12 +137,17 @@ const CliProviderSettings: React.FC<{ embedded?: boolean }> = ({ embedded = fals
       if (target === 'codex') {
         const preset = CODEX_PROVIDER_PRESETS.find((p) => p.name === config.presetName);
         if (!preset) return;
-        const auth = { ...(preset.auth || {}) } as Record<string, unknown>;
-        if (config.apiKey) {
-          auth['OPENAI_API_KEY'] = config.apiKey;
-        }
+        const shouldUseOfficial = isOfficialCliPreset(preset) && !config.apiKey && !config.baseUrl;
+        const authPatch = config.apiKey ? ({ OPENAI_API_KEY: config.apiKey } as Record<string, unknown>) : undefined;
+        const clearAuthKeys = shouldUseOfficial ? (['OPENAI_API_KEY'] as string[]) : undefined;
         const configToml = patchCodexConfig(preset.config, config.baseUrl, config.model);
-        const result = await applyProvider({ target, auth, configToml });
+        const result = await applyProvider({
+          target,
+          authPatch,
+          clearAuthKeys,
+          configToml: configToml && configToml.trim() ? configToml : undefined,
+          clearConfigToml: shouldUseOfficial,
+        });
         if (result.success) {
           message.success('Codex settings updated');
         } else {
@@ -139,6 +163,7 @@ const CliProviderSettings: React.FC<{ embedded?: boolean }> = ({ embedded = fals
   const ProviderForm: React.FC<{ target: CliProviderTarget; presets: ProviderPreset[] }> = ({ target, presets }) => {
     const config = configs[target] || {};
     const preset = presets.find((p) => p.name === config.presetName);
+    const isOfficial = isOfficialCliPreset(preset);
     const endpointCandidates = preset?.endpointCandidates || [];
     const modelListState = useModeModeList(target === 'codex' ? 'openai' : '', config.baseUrl, config.apiKey);
     const modelOptions = useMemo(() => modelListState.data?.models || [], [modelListState.data?.models]);
@@ -244,7 +269,7 @@ const CliProviderSettings: React.FC<{ embedded?: boolean }> = ({ embedded = fals
                     ...configs[target],
                     presetName: value,
                     baseUrl: baseUrl ? String(baseUrl) : '',
-                    model: model ? String(model) : config.model,
+                    model: model ? String(model) : '',
                   },
                 };
                 void saveConfigs(nextConfigs);
@@ -267,67 +292,102 @@ const CliProviderSettings: React.FC<{ embedded?: boolean }> = ({ embedded = fals
             </div>
           )}
 
+          {isOfficial && (
+            <div className='text-12px text-t-secondary leading-5'>
+              <div>Official provider supports browser sign-in. Leave API Key empty and apply.</div>
+              {target === 'codex' ? (
+                <div>
+                  Then run <span className='font-mono'>codex login</span> in your terminal if needed. See official docs:{' '}
+                  <a
+                    href='https://developers.openai.com/codex/auth'
+                    target='_blank'
+                    rel='noopener noreferrer'
+                    className='text-[rgb(var(--primary-6))]'
+                  >
+                    Codex auth
+                  </a>
+                </div>
+              ) : (
+                <div>
+                  Then run <span className='font-mono'>claude</span> and use <span className='font-mono'>/login</span> if needed. See official docs:{' '}
+                  <a
+                    href='https://docs.anthropic.com/en/docs/claude-code/quickstart'
+                    target='_blank'
+                    rel='noopener noreferrer'
+                    className='text-[rgb(var(--primary-6))]'
+                  >
+                    Claude Code quickstart
+                  </a>
+                </div>
+              )}
+            </div>
+          )}
+
           <Form.Item label='API Key'>
             <Input.Password
-              placeholder='Enter API key'
+              placeholder={isOfficial ? 'Optional (leave empty to use browser login)' : 'Enter API key'}
               value={config.apiKey || ''}
               onChange={(value) => void saveConfigs({ ...configs, [target]: { ...configs[target], apiKey: value } })}
             />
           </Form.Item>
 
-          {endpointCandidates.length > 0 ? (
-            <Form.Item label='Base URL'>
-              <Select
-                allowCreate
-                value={config.baseUrl}
-                placeholder='Select or input base url'
-                onChange={(value) => void saveConfigs({ ...configs, [target]: { ...configs[target], baseUrl: value } })}
-              >
-                {endpointCandidates.map((url) => (
-                  <Select.Option key={url} value={url}>
-                    {url}
-                  </Select.Option>
-                ))}
-              </Select>
-            </Form.Item>
-          ) : (
-            <Form.Item label='Base URL'>
-              <Input
-                placeholder='Optional base url'
-                value={config.baseUrl || ''}
-                onChange={(value) => void saveConfigs({ ...configs, [target]: { ...configs[target], baseUrl: value } })}
-              />
-            </Form.Item>
-          )}
+          {!isOfficial &&
+            (endpointCandidates.length > 0 ? (
+              <Form.Item label='Base URL'>
+                <Select
+                  allowCreate
+                  value={config.baseUrl}
+                  placeholder='Select or input base url'
+                  onChange={(value) => void saveConfigs({ ...configs, [target]: { ...configs[target], baseUrl: value } })}
+                >
+                  {endpointCandidates.map((url) => (
+                    <Select.Option key={url} value={url}>
+                      {url}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            ) : (
+              <Form.Item label='Base URL'>
+                <Input
+                  placeholder='Optional base url'
+                  value={config.baseUrl || ''}
+                  onChange={(value) => void saveConfigs({ ...configs, [target]: { ...configs[target], baseUrl: value } })}
+                />
+              </Form.Item>
+            ))}
 
-          <div className='space-y-10px'>
-            <div className='flex items-center justify-between gap-12px'>
-              <div className='text-12px text-t-secondary'>{t('settings.enabledModels')}</div>
-              <Button
-                size='mini'
-                type='secondary'
-                shape='round'
-                className='px-10px'
-                icon={<Download theme='outline' size={14} />}
-                onClick={() => void handleFetchModels()}
-              >
-                {t('settings.fetchModels')}
-              </Button>
-            </div>
-            {availableModels.length > 0 && (
-              <div className='space-y-8px overflow-y-auto pr-2' style={{ maxHeight: 280 }}>
-                {availableModels.map((modelName) => {
-                  const isEnabled = effectiveEnabledModels.includes(modelName);
-                  return (
-                    <div key={modelName} className='flex items-center justify-between gap-12px bg-fill-2 rd-8px px-12px py-8px'>
-                      <span className='text-14px text-t-primary break-all'>{modelName}</span>
-                      <Switch checked={isEnabled} onChange={(checked) => toggleModel(modelName, checked)} />
-                    </div>
-                  );
-                })}
+          {!isOfficial && (
+            <div className='space-y-10px'>
+              <div className='flex items-center justify-between gap-12px'>
+                <div className='text-12px text-t-secondary'>{t('settings.enabledModels')}</div>
+                <Button
+                  size='mini'
+                  type='secondary'
+                  shape='round'
+                  className='px-10px'
+                  icon={<Download theme='outline' size={14} />}
+                  onClick={() => void handleFetchModels()}
+                >
+                  {t('settings.fetchModels')}
+                </Button>
               </div>
-            )}
-          </div>
+              {availableModels.length > 0 && (
+                <div className='space-y-8px overflow-y-auto pr-2' style={{ maxHeight: 280 }}>
+                  {availableModels.map((modelName) => {
+                    const isEnabled = effectiveEnabledModels.includes(modelName);
+                    return (
+                      <div key={modelName} className='flex items-center justify-between gap-12px bg-fill-2 rd-8px px-12px py-8px'>
+                        <span className='text-14px text-t-primary break-all'>{modelName}</span>
+                        <Switch checked={isEnabled} onChange={(checked) => toggleModel(modelName, checked)} />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {modelError && <div className='text-12px text-[rgb(var(--danger-6))]'>{modelError}</div>}
+            </div>
+          )}
 
           {renderTemplateValues(preset)}
         </Form>

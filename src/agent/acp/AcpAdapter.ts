@@ -13,11 +13,23 @@ import type { AcpBackend, AcpSessionUpdate, AgentMessageChunkUpdate, AgentThough
  */
 export class AcpAdapter {
   private conversationId: string;
+  private backend: AcpBackend;
   private activeToolCalls: Map<string, IMessageAcpToolCall> = new Map();
   private currentMessageId: string | null = uuid(); // Track current message for streaming chunks
+  private suppressedMsgId: string | null = null;
 
-  constructor(conversationId: string, _backend: AcpBackend) {
+  constructor(conversationId: string, backend: AcpBackend) {
     this.conversationId = conversationId;
+    this.backend = backend;
+  }
+
+  private shouldSuppressAvailableCommands(content: string): boolean {
+    const trimmed = content.trimStart();
+    if (!trimmed.startsWith('Available Commands')) return false;
+    // Heuristic: "Available Commands" header followed by bullet list items.
+    const lines = trimmed.split('\n');
+    const bulletLines = lines.slice(1).filter((line) => /^\s*[-*•]\s+\S+/.test(line));
+    return bulletLines.length >= 1;
   }
 
   /**
@@ -26,6 +38,7 @@ export class AcpAdapter {
    */
   resetMessageTracking() {
     this.currentMessageId = uuid();
+    this.suppressedMsgId = null;
   }
 
   /**
@@ -111,6 +124,9 @@ export class AcpAdapter {
    */
   private convertSessionUpdateChunk(update: AgentMessageChunkUpdate['update']): TMessage | null {
     const msgId = this.getCurrentMessageId(); // Use consistent msg_id for streaming chunks
+    if (this.suppressedMsgId === msgId) {
+      return null;
+    }
     const baseMessage = {
       id: uuid(), // Each chunk still gets unique id (for deduplication in composeMessage)
       msg_id: msgId, // But shares msg_id to enable accumulation
@@ -120,6 +136,11 @@ export class AcpAdapter {
     };
 
     if (update.content && update.content.text) {
+      if (this.shouldSuppressAvailableCommands(update.content.text)) {
+        // Suppress the whole streaming message to avoid partial leftovers across chunks.
+        this.suppressedMsgId = msgId;
+        return null;
+      }
       return {
         ...baseMessage,
         type: 'text',

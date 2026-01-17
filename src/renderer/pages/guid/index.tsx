@@ -29,6 +29,8 @@ import { useDragUpload } from '@/renderer/hooks/useDragUpload';
 import { usePasteService } from '@/renderer/hooks/usePasteService';
 import { useSlashCommands } from '@/renderer/hooks/useSlashCommands';
 import useModeModeList from '@/renderer/hooks/useModeModeList';
+import { CLAUDE_PROVIDER_PRESETS } from '@/renderer/config/cliProviders/claudePresets';
+import { CODEX_PROVIDER_PRESETS } from '@/renderer/config/cliProviders/codexPresets';
 import { allSupportedExts, type FileMetadata, getCleanFileNames } from '@/renderer/services/FileService';
 import { buildDisplayMessage } from '@/renderer/utils/messageFiles';
 import { iconColors } from '@/renderer/theme/colors';
@@ -103,6 +105,13 @@ const useModelList = (selectedAgentKey: string, selectedAgentPresetType?: CliPro
   const cliTarget = useMemo(() => getCliProviderTarget(selectedAgentKey, selectedAgentPresetType || null), [selectedAgentKey, selectedAgentPresetType]);
   const cliConfig = cliTarget ? cliProviders?.[cliTarget] : undefined;
 
+  const cliPreset = useMemo(() => {
+    if (!cliTarget || !cliConfig?.presetName) return null;
+    const presets = cliTarget === 'codex' ? CODEX_PROVIDER_PRESETS : CLAUDE_PROVIDER_PRESETS;
+    return presets.find((p) => p.name === cliConfig.presetName) || null;
+  }, [cliConfig?.presetName, cliTarget]);
+  const isOfficialCliProvider = useMemo(() => cliPreset?.category === 'official', [cliPreset?.category]);
+
   const codexModelListState = useModeModeList(cliTarget === 'codex' ? 'openai' : '', cliConfig?.baseUrl, cliConfig?.apiKey);
   const codexModels = useMemo(() => (cliTarget === 'codex' ? codexModelListState.data?.models?.map((item) => item.value) || [] : []), [cliTarget, codexModelListState.data?.models]);
   const claudeModels = useMemo(() => (cliTarget === 'claude' && cliConfig?.model ? [cliConfig.model] : []), [cliTarget, cliConfig?.model]);
@@ -115,6 +124,17 @@ const useModelList = (selectedAgentKey: string, selectedAgentPresetType?: CliPro
 
   const modelList = useMemo(() => {
     if (!cliTarget) return [];
+    if (isOfficialCliProvider) {
+      const provider: IProvider = {
+        id: `cli:${cliTarget}`,
+        platform: cliTarget,
+        name: providerName,
+        baseUrl: '',
+        apiKey: '',
+        model: ['default'],
+      };
+      return [provider].filter(hasAvailableModels);
+    }
     const models = cliTarget === 'codex' ? codexModels : claudeModels;
     const filteredModels = enabledModelSet.size > 0 ? models.filter((model) => enabledModelSet.has(model)) : [];
     if (!filteredModels.length) return [];
@@ -127,24 +147,25 @@ const useModelList = (selectedAgentKey: string, selectedAgentPresetType?: CliPro
       model: filteredModels,
     };
     return [provider].filter(hasAvailableModels);
-  }, [cliTarget, codexModels, claudeModels, providerName, cliConfig?.baseUrl, cliConfig?.apiKey, enabledModelSet]);
+  }, [cliTarget, codexModels, claudeModels, providerName, isOfficialCliProvider, enabledModelSet]);
 
   const isConfigured = useMemo(() => {
     if (!cliTarget) return false;
+    if (isOfficialCliProvider) return true;
     if (cliTarget === 'codex') {
       return Boolean(cliConfig?.apiKey || cliConfig?.baseUrl);
     }
     return Boolean(cliConfig?.model);
-  }, [cliTarget, cliConfig?.apiKey, cliConfig?.baseUrl, cliConfig?.model]);
+  }, [cliTarget, cliConfig?.apiKey, cliConfig?.baseUrl, cliConfig?.model, isOfficialCliProvider]);
 
-  const hasEnabledModels = useMemo(() => enabledModelSet.size > 0, [enabledModelSet.size]);
+  const hasEnabledModels = useMemo(() => (isOfficialCliProvider ? true : enabledModelSet.size > 0), [enabledModelSet.size, isOfficialCliProvider]);
 
   return {
     modelList,
     isConfigured,
     hasEnabledModels,
     hasCliTarget: Boolean(cliTarget),
-    isLoading: cliTarget === 'codex' ? codexModelListState.isLoading : false,
+    isLoading: cliTarget === 'codex' && !isOfficialCliProvider ? codexModelListState.isLoading : false,
   };
 };
 
@@ -320,9 +341,12 @@ const Guid: React.FC = () => {
   const setCurrentModel = async (modelInfo: TProviderWithModel) => {
     // 记录最新的选中 key，避免列表刷新后被错误重置
     selectedModelKeyRef.current = buildModelKey(modelInfo.id, modelInfo.useModel);
-    await ConfigStorage.set('model.defaultModel', modelInfo.useModel).catch((error) => {
-      console.error('Failed to save default model:', error);
-    });
+    // Do not pollute global default model with CLI pseudo models.
+    if (!modelInfo.id?.startsWith('cli:')) {
+      await ConfigStorage.set('model.defaultModel', modelInfo.useModel).catch((error) => {
+        console.error('Failed to save default model:', error);
+      });
+    }
     _setCurrentModel(modelInfo);
   };
   const navigate = useNavigate();
@@ -1373,7 +1397,7 @@ const Guid: React.FC = () => {
                                         });
                                       }}
                                     >
-                                      {modelName}
+                                      {provider.id?.startsWith('cli:') && modelName === 'default' ? t('common.default') : modelName}
                                     </Menu.Item>
                                   ))}
                                 </Menu.ItemGroup>
@@ -1389,7 +1413,11 @@ const Guid: React.FC = () => {
                   }
                 >
                   <Button className={'sendbox-model-btn'} shape='round'>
-                    {currentModel ? currentModel.useModel : t('conversation.welcome.selectModel')}
+                    {currentModel
+                      ? currentModel.id?.startsWith('cli:') && currentModel.useModel === 'default'
+                        ? t('common.default')
+                        : currentModel.useModel
+                      : t('conversation.welcome.selectModel')}
                   </Button>
                 </Dropdown>
               </div>
