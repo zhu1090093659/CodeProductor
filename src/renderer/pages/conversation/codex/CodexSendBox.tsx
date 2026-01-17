@@ -18,7 +18,7 @@ import { buildDisplayMessage } from '@/renderer/utils/messageFiles';
 import type { ThoughtData } from '@/renderer/components/ThoughtDisplay';
 import FilePreview from '@/renderer/components/FilePreview';
 import HorizontalFileList from '@/renderer/components/HorizontalFileList';
-import { usePreviewContext } from '@/renderer/pages/conversation/preview';
+import { usePreviewContext } from '@/renderer/pages/conversation/workspace/preview';
 import { useLatestRef } from '@/renderer/hooks/useLatestRef';
 import { useAutoTitle } from '@/renderer/hooks/useAutoTitle';
 import { useSlashCommands } from '@/renderer/hooks/useSlashCommands';

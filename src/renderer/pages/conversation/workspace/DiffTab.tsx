@@ -7,7 +7,7 @@
 import { ipcBridge } from '@/common';
 import { Empty, Spin } from '@arco-design/web-react';
 import React, { useEffect, useState } from 'react';
-import DiffPreview from '@/renderer/pages/conversation/preview/components/viewers/DiffViewer';
+import DiffPreview from '@/renderer/pages/conversation/workspace/preview/components/viewers/DiffViewer';
 
 const DiffTab: React.FC<{ workspace: string; active: boolean }> = ({ workspace, active }) => {
   const [loading, setLoading] = useState(false);

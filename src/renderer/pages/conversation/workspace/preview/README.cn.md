@@ -4,6 +4,8 @@
 
 Preview 模块是 CodeConductor 中的文件预览和编辑系统，支持多种文件格式的查看和编辑。该模块采用**多 Tab 架构**，支持同时打开多个文件，每个文件在独立的 Tab 中显示。Preview 模块集成了实时流式更新、版本历史、分屏预览、快捷键等高级功能，为用户提供强大的文件处理能力。
 
+当前该模块位于 `workspace/preview/`，并在 Workspace 面板内部（右侧预览区域）渲染。
+
 ## 核心特性
 
 ### 1. 多 Tab 管理
@@ -548,6 +550,6 @@ export const FILE_TYPES_WITH_BUILTIN_OPEN = ['pdf', 'word', 'excel', 'ppt'];
 
 ## 相关链接
 
-- [Workspace 模块文档](../workspace/README.md)
+- [Workspace 模块文档](../README.cn.md)
 - [IPC Bridge 文档](../../../../common/ipcBridge/README.md)
 - [Monaco Editor 文档](https://microsoft.github.io/monaco-editor/)

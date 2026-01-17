@@ -9,7 +9,7 @@ import type { DependencyList } from 'react';
 import { useEffect } from 'react';
 import type { FileOrFolderItem } from '@/renderer/types/files';
 import type { PreviewContentType } from '@/common/types/preview';
-import type { PreviewMetadata } from '@/renderer/pages/conversation/preview/context/PreviewContext';
+import type { PreviewMetadata } from '@/renderer/pages/conversation/workspace/preview/context/PreviewContext';
 
 type ThoughtData = { subject: string; description: string };
 

@@ -11,17 +11,7 @@ import { uuid } from '@/common/utils';
 import DirectorySelectionModal from '@/renderer/components/DirectorySelectionModal';
 import FlexFullContainer from '@/renderer/components/FlexFullContainer';
 import useDebounce from '@/renderer/hooks/useDebounce';
-import { usePreviewContext } from '@/renderer/pages/conversation/preview';
-import CodePreview from '@/renderer/pages/conversation/preview/components/viewers/CodeViewer';
-import DiffPreview from '@/renderer/pages/conversation/preview/components/viewers/DiffViewer';
-import ExcelPreview from '@/renderer/pages/conversation/preview/components/viewers/ExcelViewer';
-import HTMLPreview from '@/renderer/pages/conversation/preview/components/viewers/HTMLViewer';
-import ImagePreview from '@/renderer/pages/conversation/preview/components/viewers/ImageViewer';
-import MarkdownPreview from '@/renderer/pages/conversation/preview/components/viewers/MarkdownViewer';
-import PDFPreview from '@/renderer/pages/conversation/preview/components/viewers/PDFViewer';
-import PPTPreview from '@/renderer/pages/conversation/preview/components/viewers/PPTViewer';
-import URLViewer from '@/renderer/pages/conversation/preview/components/viewers/URLViewer';
-import WordPreview from '@/renderer/pages/conversation/preview/components/viewers/WordViewer';
+import { PreviewPanel, usePreviewContext } from '@/renderer/pages/conversation/workspace/preview';
 import { iconColors } from '@/renderer/theme/colors';
 import { addEventListener, emitter } from '@/renderer/utils/emitter';
 import { isElectronDesktop } from '@/renderer/utils/platform';
@@ -39,7 +29,7 @@ import { useWorkspaceModals } from './hooks/useWorkspaceModals';
 import { useWorkspacePaste } from './hooks/useWorkspacePaste';
 import { useWorkspaceTree } from './hooks/useWorkspaceTree';
 import type { WorkspaceProps } from './types';
-import { getPreviewContentType, loadPreviewForFile, type PreviewLoadResult } from './utils/previewUtils';
+import { getPreviewContentType, loadPreviewForFile } from './utils/previewUtils';
 import { extractNodeData, extractNodeKey, findNodeByKey, getTargetFolderPath } from './utils/treeHelpers';
 
 const ChangeWorkspaceIcon: React.FC<React.SVGProps<SVGSVGElement>> = ({ className, ...rest }) => {
@@ -62,7 +52,7 @@ const ChangeWorkspaceIcon: React.FC<React.SVGProps<SVGSVGElement>> = ({ classNam
 
 const ChatWorkspace: React.FC<WorkspaceProps> = ({ conversation_id, workspace, eventPrefix = 'acp', messageApi: externalMessageApi }) => {
   const { t } = useTranslation();
-  const { openPreview } = usePreviewContext();
+  const { isOpen: isPreviewOpen, activeTab, openPreview, closePreview } = usePreviewContext();
   const navigate = useNavigate();
 
   // Message API setup
@@ -80,7 +70,6 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({ conversation_id, workspace, e
   const [showDirectorySelector, setShowDirectorySelector] = useState(false);
   const [selectedTargetPath, setSelectedTargetPath] = useState('');
   const [migrationLoading, setMigrationLoading] = useState(false);
-  const [workspacePreview, setWorkspacePreview] = useState<PreviewLoadResult | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [showUrlPreviewModal, setShowUrlPreviewModal] = useState(false);
@@ -199,9 +188,10 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({ conversation_id, workspace, e
   });
 
   useEffect(() => {
-    setWorkspacePreview(null);
+    closePreview();
     setPreviewError(null);
-  }, [workspace, conversation_id]);
+    setPreviewLoading(false);
+  }, [workspace, conversation_id, closePreview]);
 
   const openUrlPreviewFromInput = useCallback(() => {
     const raw = urlPreviewInput.trim();
@@ -210,18 +200,14 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({ conversation_id, workspace, e
     const normalized = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
     setPreviewError(null);
     setPreviewLoading(false);
-    setWorkspacePreview({
-      content: normalized,
-      contentType: 'url',
-      metadata: {
-        title: normalized,
-        fileName: normalized,
-        workspace,
-        editable: false,
-      },
+    openPreview(normalized, 'url', {
+      title: normalized,
+      fileName: normalized,
+      workspace,
+      editable: false,
     });
     setShowUrlPreviewModal(false);
-  }, [urlPreviewInput, workspace]);
+  }, [openPreview, urlPreviewInput, workspace]);
 
   const handlePreviewInWorkspace = useCallback(
     async (nodeData: IDirOrFile | null) => {
@@ -231,7 +217,7 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({ conversation_id, workspace, e
       try {
         const preview = await loadPreviewForFile(nodeData, workspace);
         if (preview) {
-          setWorkspacePreview(preview);
+          openPreview(preview.content, preview.contentType, preview.metadata);
         }
       } catch (error) {
         console.error('[WorkspacePreview] Failed to load preview:', error);
@@ -240,7 +226,7 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({ conversation_id, workspace, e
         setPreviewLoading(false);
       }
     },
-    [workspace, t]
+    [openPreview, workspace, t]
   );
 
   useEffect(() => {
@@ -249,13 +235,9 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({ conversation_id, workspace, e
       setIsWorkspaceCollapsed(false);
       setPreviewError(null);
       setPreviewLoading(false);
-      setWorkspacePreview({
-        content: payload.content,
-        contentType: payload.contentType,
-        metadata: payload.metadata ?? undefined,
-      });
+      openPreview(payload.content, payload.contentType, payload.metadata ?? undefined);
     });
-  }, [workspace]);
+  }, [openPreview, workspace]);
 
   // Debounced search handler
   const onSearch = useDebounce(
@@ -458,24 +440,10 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({ conversation_id, workspace, e
     if (previewError) {
       return <div className='flex items-center justify-center h-full text-12px text-t-secondary'>{previewError}</div>;
     }
-    if (!workspacePreview) {
+    if (!isPreviewOpen) {
       return <Empty description={t('conversation.workspace.previewEmpty', { defaultValue: '请选择文件预览' })} />;
     }
-
-    const { content, contentType, metadata } = workspacePreview;
-    const renderers: Record<string, () => React.ReactElement> = {
-      markdown: () => <MarkdownPreview content={content} hideToolbar filePath={metadata?.filePath} />,
-      diff: () => <DiffPreview content={content} metadata={metadata} hideToolbar />,
-      code: () => <CodePreview content={content} language={metadata?.language} hideToolbar viewMode='preview' />,
-      pdf: () => <PDFPreview filePath={metadata?.filePath} content={content} hideToolbar />,
-      ppt: () => <PPTPreview filePath={metadata?.filePath} content={content} />,
-      word: () => <WordPreview filePath={metadata?.filePath} content={content} hideToolbar />,
-      excel: () => <ExcelPreview filePath={metadata?.filePath} content={content} hideToolbar />,
-      image: () => <ImagePreview filePath={metadata?.filePath} content={content} fileName={metadata?.fileName || metadata?.title} />,
-      html: () => <HTMLPreview content={content} filePath={metadata?.filePath} hideToolbar />,
-      url: () => <URLViewer url={content} title={metadata?.title} />,
-    };
-    return renderers[contentType]?.() || <Empty description={t('conversation.workspace.previewEmpty', { defaultValue: '请选择文件预览' })} />;
+    return <PreviewPanel />;
   };
 
   return (
@@ -1012,13 +980,13 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({ conversation_id, workspace, e
             </div>
             <div className='flex-1 min-w-0 border-l border-b-base flex flex-col'>
               <div className='h-32px px-12px flex items-center justify-between gap-8px bg-bg-2 text-12px text-t-secondary border-b border-b-base'>
-                <div className='min-w-0 truncate'>{workspacePreview?.metadata?.fileName || t('conversation.workspace.previewTitle', { defaultValue: 'Preview' })}</div>
+                <div className='min-w-0 truncate'>{activeTab?.metadata?.fileName || activeTab?.title || t('conversation.workspace.previewTitle', { defaultValue: 'Preview' })}</div>
                 <Tooltip content='Open URL'>
                   <button
                     type='button'
                     className='px-10px h-22px rounded-6px text-12px border border-border-1 bg-bg-1 text-t-secondary hover:bg-bg-3 transition-colors flex-shrink-0'
                     onClick={() => {
-                      const current = workspacePreview?.contentType === 'url' ? (workspacePreview.content || '') : '';
+                      const current = activeTab?.contentType === 'url' ? (activeTab.content || '') : '';
                       setUrlPreviewInput(current);
                       setShowUrlPreviewModal(true);
                     }}

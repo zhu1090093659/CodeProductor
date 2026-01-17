@@ -285,10 +285,10 @@ Event naming convention: `${eventPrefix}.${eventName}`
 
 ### 2. Preview Integration
 
-Workspace depends on `PreviewContext` for file preview:
+Workspace includes the `preview/` submodule and depends on `PreviewContext` for file preview (the preview UI is rendered inside the Workspace panel, not as a separate middle panel):
 
 ```tsx
-import { PreviewProvider } from '../preview';
+import { PreviewProvider } from './preview';
 
 function Layout() {
   return (
@@ -414,6 +414,6 @@ await ConfigStorage.set('workspace.pasteConfirm', true);
 
 ## Related Links
 
-- [Preview Module Documentation](../preview/README.en.md)
+- [Preview Module Documentation](./preview/README.en.md)
 - [IPC Bridge Documentation](../../../../common/ipcBridge/README.en.md)
 - [Configuration Storage Documentation](../../../../common/storage.ts)

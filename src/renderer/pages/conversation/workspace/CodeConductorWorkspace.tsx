@@ -11,15 +11,15 @@ import { ipcBridge } from '@/common';
 import TerminalTab from './TerminalTab';
 import DiffTab from './DiffTab';
 import type { PreviewLoadResult } from './utils/previewUtils';
-import CodePreview from '@/renderer/pages/conversation/preview/components/viewers/CodeViewer';
-import DiffPreview from '@/renderer/pages/conversation/preview/components/viewers/DiffViewer';
-import ExcelPreview from '@/renderer/pages/conversation/preview/components/viewers/ExcelViewer';
-import HTMLPreview from '@/renderer/pages/conversation/preview/components/viewers/HTMLViewer';
-import ImagePreview from '@/renderer/pages/conversation/preview/components/viewers/ImageViewer';
-import MarkdownPreview from '@/renderer/pages/conversation/preview/components/viewers/MarkdownViewer';
-import PDFPreview from '@/renderer/pages/conversation/preview/components/viewers/PDFViewer';
-import PPTPreview from '@/renderer/pages/conversation/preview/components/viewers/PPTViewer';
-import WordPreview from '@/renderer/pages/conversation/preview/components/viewers/WordViewer';
+import CodePreview from '@/renderer/pages/conversation/workspace/preview/components/viewers/CodeViewer';
+import DiffPreview from '@/renderer/pages/conversation/workspace/preview/components/viewers/DiffViewer';
+import ExcelPreview from '@/renderer/pages/conversation/workspace/preview/components/viewers/ExcelViewer';
+import HTMLPreview from '@/renderer/pages/conversation/workspace/preview/components/viewers/HTMLViewer';
+import ImagePreview from '@/renderer/pages/conversation/workspace/preview/components/viewers/ImageViewer';
+import MarkdownPreview from '@/renderer/pages/conversation/workspace/preview/components/viewers/MarkdownViewer';
+import PDFPreview from '@/renderer/pages/conversation/workspace/preview/components/viewers/PDFViewer';
+import PPTPreview from '@/renderer/pages/conversation/workspace/preview/components/viewers/PPTViewer';
+import WordPreview from '@/renderer/pages/conversation/workspace/preview/components/viewers/WordViewer';
 
 const normalizeWorkspacePath = (value: string) => value.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
 

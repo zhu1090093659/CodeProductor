@@ -13,7 +13,7 @@ import { useDragUpload } from '../hooks/useDragUpload';
 import { usePasteService } from '../hooks/usePasteService';
 import type { FileMetadata } from '../services/FileService';
 import { allSupportedExts } from '../services/FileService';
-import { usePreviewContext } from '@/renderer/pages/conversation/preview';
+import { usePreviewContext } from '@/renderer/pages/conversation/workspace/preview';
 import { useLatestRef } from '../hooks/useLatestRef';
 import { useInputFocusRing } from '@/renderer/hooks/useInputFocusRing';
 import type { SlashCommandItem } from '@/renderer/utils/commandRegistry';

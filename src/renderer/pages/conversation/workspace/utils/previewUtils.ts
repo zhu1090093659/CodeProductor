@@ -7,7 +7,7 @@
 import { ipcBridge } from '@/common';
 import type { IDirOrFile } from '@/common/ipcBridge';
 import type { PreviewContentType } from '@/common/types/preview';
-import type { PreviewMetadata } from '@/renderer/pages/conversation/preview/context/PreviewContext';
+import type { PreviewMetadata } from '@/renderer/pages/conversation/workspace/preview/context/PreviewContext';
 
 export interface PreviewLoadResult {
   content: string;

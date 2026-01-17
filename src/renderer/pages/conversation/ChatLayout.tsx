@@ -4,7 +4,7 @@ import type { IMessageAgentStatus } from '@/common/chatLib';
 import FlexFullContainer from '@/renderer/components/FlexFullContainer';
 import { useLayoutContext } from '@/renderer/context/LayoutContext';
 import { useResizableSplit } from '@/renderer/hooks/useResizableSplit';
-import { PreviewPanel, usePreviewContext } from '@/renderer/pages/conversation/preview';
+import { usePreviewContext } from '@/renderer/pages/conversation/workspace/preview';
 import ConversationTabs from '@/renderer/pages/conversation/ConversationTabs';
 import { useConversationTabs } from '@/renderer/pages/conversation/context/ConversationTabsContext';
 import { Badge, Layout as ArcoLayout } from '@arco-design/web-react';
@@ -39,9 +39,7 @@ import { ACP_BACKENDS_ALL } from '@/types/acpTypes';
 import { addEventListener } from '@/renderer/utils/emitter';
 import classNames from 'classnames';
 
-const MIN_CHAT_RATIO = 25;
 const MIN_WORKSPACE_RATIO = 12;
-const MIN_PREVIEW_RATIO = 20;
 const WORKSPACE_HEADER_HEIGHT = 32;
 
 const isMacEnvironment = () => {
@@ -116,9 +114,6 @@ const ChatLayout: React.FC<{
   // 右侧栏折叠状态引用 / Mirror ref for collapse state
   const rightCollapsedRef = useRef(rightSiderCollapsed);
   const previousRightSiderCollapsedRef = useRef(rightSiderCollapsed);
-  const previousWorkspaceCollapsedRef = useRef<boolean | null>(null);
-  const previousSiderCollapsedRef = useRef<boolean | null>(null);
-  const previousPreviewOpenRef = useRef(false);
 
   // 预览面板状态 / Preview panel state
   const { isOpen: isPreviewOpen } = usePreviewContext();
@@ -291,18 +286,7 @@ const ChatLayout: React.FC<{
   }, [layout?.isMobile, workspaceEnabled]);
 
   const {
-    splitRatio: chatSplitRatio,
-    setSplitRatio: setChatSplitRatio,
-    createDragHandle: createPreviewDragHandle,
-  } = useResizableSplit({
-    defaultWidth: 60,
-    minWidth: MIN_CHAT_RATIO,
-    maxWidth: 80,
-    storageKey: 'chat-preview-split-ratio',
-  });
-  const {
     splitRatio: workspaceSplitRatio,
-    setSplitRatio: setWorkspaceSplitRatio,
     createDragHandle: createWorkspaceDragHandle,
   } = useResizableSplit({
     defaultWidth: 60,
@@ -313,63 +297,18 @@ const ChatLayout: React.FC<{
 
   const isDesktop = !layout?.isMobile;
   const effectiveWorkspaceRatio = workspaceEnabled && isDesktop && !rightSiderCollapsed ? workspaceSplitRatio : 0;
-  const chatFlex = isDesktop ? (isPreviewOpen ? chatSplitRatio : 100 - effectiveWorkspaceRatio) : 100;
+  const chatFlex = isDesktop ? 100 - effectiveWorkspaceRatio : 100;
   const workspaceFlex = effectiveWorkspaceRatio;
   const viewportWidth = containerWidth || (typeof window === 'undefined' ? 0 : window.innerWidth);
   const workspaceWidthPx = workspaceEnabled ? Math.min(500, Math.max(200, (workspaceSplitRatio / 100) * (viewportWidth || 0))) : 0;
 
   useEffect(() => {
-    if (!workspaceEnabled || !isPreviewOpen || !isDesktop || rightSiderCollapsed) {
-      return;
-    }
-    const maxWorkspace = Math.max(MIN_WORKSPACE_RATIO, Math.min(40, 100 - chatSplitRatio - MIN_PREVIEW_RATIO));
-    if (workspaceSplitRatio > maxWorkspace) {
-      setWorkspaceSplitRatio(maxWorkspace);
-    }
-    // 故意不将 workspaceSplitRatio 加入依赖，避免拖动工作空间时触发额外的 effect
-  }, [chatSplitRatio, isDesktop, isPreviewOpen, rightSiderCollapsed, setWorkspaceSplitRatio, workspaceEnabled]);
-
-  useEffect(() => {
     if (!workspaceEnabled || !isPreviewOpen || !isDesktop) {
       return;
     }
-    const activeWorkspaceRatio = rightSiderCollapsed ? 0 : workspaceSplitRatio;
-    const maxChat = Math.max(MIN_CHAT_RATIO, Math.min(80, 100 - activeWorkspaceRatio - MIN_PREVIEW_RATIO));
-    if (chatSplitRatio > maxChat) {
-      setChatSplitRatio(maxChat);
-    }
-    // 故意不将 workspaceSplitRatio 加入依赖，避免拖动工作空间时影响会话面板
-  }, [chatSplitRatio, isDesktop, isPreviewOpen, rightSiderCollapsed, setChatSplitRatio, workspaceEnabled]);
-
-  // 预览打开时自动收起侧边栏和工作空间 / Auto-collapse sidebar and workspace when preview opens
-  useEffect(() => {
-    if (!workspaceEnabled || !isDesktop) {
-      previousPreviewOpenRef.current = false;
-      return;
-    }
-
-    if (isPreviewOpen && !previousPreviewOpenRef.current) {
-      if (previousWorkspaceCollapsedRef.current === null) {
-        previousWorkspaceCollapsedRef.current = rightSiderCollapsed;
-      }
-      if (previousSiderCollapsedRef.current === null && typeof layout?.siderCollapsed !== 'undefined') {
-        previousSiderCollapsedRef.current = layout.siderCollapsed;
-      }
-      setRightSiderCollapsed(true);
-      layout?.setSiderCollapsed?.(true);
-    } else if (!isPreviewOpen && previousPreviewOpenRef.current) {
-      if (previousWorkspaceCollapsedRef.current !== null) {
-        setRightSiderCollapsed(previousWorkspaceCollapsedRef.current);
-        previousWorkspaceCollapsedRef.current = null;
-      }
-      if (previousSiderCollapsedRef.current !== null && layout?.setSiderCollapsed) {
-        layout.setSiderCollapsed(previousSiderCollapsedRef.current);
-        previousSiderCollapsedRef.current = null;
-      }
-    }
-
-    previousPreviewOpenRef.current = isPreviewOpen;
-  }, [isPreviewOpen, isDesktop, layout, rightSiderCollapsed, workspaceEnabled]);
+    // Preview panel is rendered inside workspace; ensure workspace panel is visible
+    setRightSiderCollapsed(false);
+  }, [isDesktop, isPreviewOpen, workspaceEnabled]);
 
   // When sidebar triggers workspace file preview, ensure workspace panel is visible
   // Keep it simple: force expand workspace panel on preview request
@@ -407,17 +346,17 @@ const ChatLayout: React.FC<{
 
   return (
     <ArcoLayout className='size-full'>
-      {/* 主内容区域：会话面板 + 工作空间面板 + 预览面板 / Main content area: chat + workspace + preview */}
+      {/* 主内容区域：会话面板 + 工作空间面板 / Main content area: chat + workspace */}
       <div ref={containerRef} className='flex flex-1 relative w-full overflow-hidden'>
         {/* 会话面板（带拖动句柄）/ Chat panel (with drag handle) */}
         <div
           className='flex flex-col relative'
           style={{
             // 使用 flexBasis 设置宽度，避免 width 和 flexBasis 冲突
-            flexGrow: isPreviewOpen && isDesktop ? 0 : chatFlex,
+            flexGrow: chatFlex,
             flexShrink: 0,
-            flexBasis: isPreviewOpen && isDesktop ? `${chatFlex}%` : 0,
-            display: isPreviewOpen && layout?.isMobile ? 'none' : 'flex',
+            flexBasis: 0,
+            display: 'flex',
             minWidth: isDesktop ? '240px' : '100%',
           }}
         >
@@ -456,32 +395,7 @@ const ChatLayout: React.FC<{
             </ArcoLayout.Header>
             <ArcoLayout.Content className='flex flex-col flex-1 bg-1 overflow-hidden'>{props.children}</ArcoLayout.Content>
           </ArcoLayout.Content>
-
-          {/* 会话右侧拖动手柄：在桌面模式下调节会话和预览的宽度比例 */}
-          {isPreviewOpen &&
-            !layout?.isMobile &&
-            createPreviewDragHandle({
-              className: 'absolute right-0 top-0 bottom-0',
-              style: {},
-            })}
         </div>
-
-        {/* 预览面板（移到中间位置）/ Preview panel (moved to middle position) */}
-        {isPreviewOpen && (
-          <div
-            className='preview-panel flex flex-col relative my-[12px] mr-[12px] ml-[8px] rounded-[15px]'
-            style={{
-              // 使用 flexGrow: 1 填充剩余空间（会话和工作空间使用固定 flexBasis）
-              flexGrow: layout?.isMobile ? 0 : 1,
-              flexShrink: layout?.isMobile ? 0 : 1,
-              flexBasis: layout?.isMobile ? '100%' : 0,
-              border: '1px solid var(--bg-3)',
-              minWidth: layout?.isMobile ? '100%' : '260px',
-            }}
-          >
-            <PreviewPanel />
-          </div>
-        )}
 
         {/* 工作空间面板（移到最右边）/ Workspace panel (moved to rightmost position) */}
         {workspaceEnabled && !layout?.isMobile && (
@@ -489,9 +403,9 @@ const ChatLayout: React.FC<{
             className={classNames('!bg-1 relative chat-layout-right-sider layout-sider')}
             style={{
               // 使用 flexBasis 设置宽度，避免 width 和 flexBasis 冲突
-              flexGrow: isPreviewOpen ? 0 : workspaceFlex,
+              flexGrow: workspaceFlex,
               flexShrink: 0,
-              flexBasis: rightSiderCollapsed ? '0px' : isPreviewOpen ? `${workspaceFlex}%` : 0,
+              flexBasis: rightSiderCollapsed ? '0px' : 0,
               minWidth: rightSiderCollapsed ? '0px' : '220px',
               overflow: 'hidden',
               borderLeft: rightSiderCollapsed ? 'none' : '1px solid var(--bg-3)',

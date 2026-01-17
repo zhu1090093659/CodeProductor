@@ -90,6 +90,7 @@ _Batch renaming, automatic organization, smart classification, file merging_
 _Supports 9+ formats of visual preview (PDF, Word, Excel, PPT, code, Markdown, images, HTML, Diff, etc.)_
 
 - ✅ **View Results Instantly** - After AI generates files, view preview immediately without switching apps
+- **Integrated in Workspace** - Preview is rendered inside the Workspace panel (right side), no separate middle panel
 - ✅ **Real-time Tracking + Editable** - Automatically tracks file changes, editor and preview sync intelligently; supports real-time editing of Markdown, code, HTML, WYSIWYG
 
 <p align="center">

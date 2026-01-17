@@ -7,7 +7,7 @@ import ProjectModePanel from './pages/conversation/ProjectModePanel';
 import SettingsSider from './pages/settings/SettingsSider';
 import { iconColors } from './theme/colors';
 import { Tooltip } from '@arco-design/web-react';
-import { usePreviewContext } from './pages/conversation/preview';
+import { usePreviewContext } from './pages/conversation/workspace/preview';
 
 interface SiderProps {
   onSessionClick?: () => void;

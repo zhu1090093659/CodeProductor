@@ -4,6 +4,8 @@
 
 The Preview module is the file preview and editing system in CodeConductor, supporting viewing and editing of multiple file formats. The module adopts a **multi-tab architecture**, allowing multiple files to be opened simultaneously, with each file displayed in its own tab. The Preview module integrates advanced features such as real-time streaming updates, version history, split-screen preview, and keyboard shortcuts, providing users with powerful file handling capabilities.
 
+This module now lives under `workspace/preview/` and is rendered inside the Workspace panel (right-side preview area).
+
 ## Core Features
 
 ### 1. Multi-Tab Management
@@ -548,6 +550,6 @@ export const FILE_TYPES_WITH_BUILTIN_OPEN = ['pdf', 'word', 'excel', 'ppt'];
 
 ## Related Links
 
-- [Workspace Module Documentation](../workspace/README.en.md)
+- [Workspace Module Documentation](../README.en.md)
 - [IPC Bridge Documentation](../../../../common/ipcBridge/README.en.md)
 - [Monaco Editor Documentation](https://microsoft.github.io/monaco-editor/)

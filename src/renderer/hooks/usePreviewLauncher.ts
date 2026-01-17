@@ -7,7 +7,7 @@
 import { ipcBridge } from '@/common';
 import type { PreviewContentType } from '@/common/types/preview';
 import { useConversationContextSafe } from '@/renderer/context/ConversationContext';
-import { usePreviewContext } from '@/renderer/pages/conversation/preview';
+import { usePreviewContext } from '@/renderer/pages/conversation/workspace/preview';
 import { useCallback, useState } from 'react';
 
 /**

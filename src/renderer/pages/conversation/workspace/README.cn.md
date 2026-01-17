@@ -285,10 +285,10 @@ function ClearButton() {
 
 ### 2. Preview 集成
 
-Workspace 依赖 `PreviewContext` 来实现文件预览:
+Workspace 内置 `preview/` 子模块，并依赖 `PreviewContext` 来实现文件预览（预览 UI 渲染在 Workspace 面板右侧区域，而不是独立的中间面板）:
 
 ```tsx
-import { PreviewProvider } from '../preview';
+import { PreviewProvider } from './preview';
 
 function Layout() {
   return (
@@ -414,6 +414,6 @@ await ConfigStorage.set('workspace.pasteConfirm', true);
 
 ## 相关链接
 
-- [Preview 模块文档](../preview/README.md)
+- [Preview 模块文档](./preview/README.cn.md)
 - [IPC Bridge 文档](../../../../common/ipcBridge/README.md)
 - [配置存储文档](../../../../common/storage.ts)
