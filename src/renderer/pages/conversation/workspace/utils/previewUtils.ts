@@ -68,6 +68,7 @@ const CODE_EXTS = [
 
 export const getPreviewContentType = (fileName: string): PreviewContentType => {
   const ext = fileName.toLowerCase().split('.').pop() || '';
+  if (ext === 'url') return 'url';
   if (ext === 'md' || ext === 'markdown') return 'markdown';
   if (ext === 'diff' || ext === 'patch') return 'diff';
   if (OFFICE_EXTS.pdf.includes(ext)) return 'pdf';
@@ -80,6 +81,16 @@ export const getPreviewContentType = (fileName: string): PreviewContentType => {
   return 'code';
 };
 
+const extractUrlFromInternetShortcut = (raw: string): string | null => {
+  const directMatch = raw.match(/^\s*URL\s*=\s*(.+)\s*$/im);
+  const candidate = (directMatch?.[1] || '').trim();
+  if (candidate && /^https?:\/\//i.test(candidate)) return candidate;
+
+  const looseMatch = raw.match(/https?:\/\/\S+/i);
+  if (looseMatch?.[0]) return looseMatch[0];
+  return null;
+};
+
 export const loadPreviewForFile = async (nodeData: IDirOrFile, workspace: string): Promise<PreviewLoadResult | null> => {
   if (!nodeData?.isFile || !nodeData.fullPath) return null;
 
@@ -89,6 +100,9 @@ export const loadPreviewForFile = async (nodeData: IDirOrFile, workspace: string
 
   if (contentType === 'image') {
     content = await ipcBridge.fs.getImageBase64.invoke({ path: nodeData.fullPath });
+  } else if (contentType === 'url') {
+    const raw = await ipcBridge.fs.readFile.invoke({ path: nodeData.fullPath });
+    content = extractUrlFromInternetShortcut(raw || '') || '';
   } else if (!['pdf', 'word', 'excel', 'ppt'].includes(contentType)) {
     content = await ipcBridge.fs.readFile.invoke({ path: nodeData.fullPath });
   }
@@ -99,7 +113,7 @@ export const loadPreviewForFile = async (nodeData: IDirOrFile, workspace: string
     filePath: nodeData.fullPath,
     workspace,
     language: ext,
-    editable: contentType === 'markdown' || contentType === 'image' ? false : undefined,
+    editable: contentType === 'markdown' || contentType === 'image' || contentType === 'url' ? false : undefined,
   };
 
   return { content, contentType, metadata };

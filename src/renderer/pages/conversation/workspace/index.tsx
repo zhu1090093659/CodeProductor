@@ -20,6 +20,7 @@ import ImagePreview from '@/renderer/pages/conversation/preview/components/viewe
 import MarkdownPreview from '@/renderer/pages/conversation/preview/components/viewers/MarkdownViewer';
 import PDFPreview from '@/renderer/pages/conversation/preview/components/viewers/PDFViewer';
 import PPTPreview from '@/renderer/pages/conversation/preview/components/viewers/PPTViewer';
+import URLViewer from '@/renderer/pages/conversation/preview/components/viewers/URLViewer';
 import WordPreview from '@/renderer/pages/conversation/preview/components/viewers/WordViewer';
 import { iconColors } from '@/renderer/theme/colors';
 import { addEventListener, emitter } from '@/renderer/utils/emitter';
@@ -82,6 +83,8 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({ conversation_id, workspace, e
   const [workspacePreview, setWorkspacePreview] = useState<PreviewLoadResult | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [showUrlPreviewModal, setShowUrlPreviewModal] = useState(false);
+  const [urlPreviewInput, setUrlPreviewInput] = useState('');
 
   // Workspace tree collapse state - 全局统一的折叠状态
   // 切换会话时保持折叠状态不变，只更新工作目录内容
@@ -199,6 +202,26 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({ conversation_id, workspace, e
     setWorkspacePreview(null);
     setPreviewError(null);
   }, [workspace, conversation_id]);
+
+  const openUrlPreviewFromInput = useCallback(() => {
+    const raw = urlPreviewInput.trim();
+    if (!raw) return;
+
+    const normalized = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    setPreviewError(null);
+    setPreviewLoading(false);
+    setWorkspacePreview({
+      content: normalized,
+      contentType: 'url',
+      metadata: {
+        title: normalized,
+        fileName: normalized,
+        workspace,
+        editable: false,
+      },
+    });
+    setShowUrlPreviewModal(false);
+  }, [urlPreviewInput, workspace]);
 
   const handlePreviewInWorkspace = useCallback(
     async (nodeData: IDirOrFile | null) => {
@@ -450,6 +473,7 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({ conversation_id, workspace, e
       excel: () => <ExcelPreview filePath={metadata?.filePath} content={content} hideToolbar />,
       image: () => <ImagePreview filePath={metadata?.filePath} content={content} fileName={metadata?.fileName || metadata?.title} />,
       html: () => <HTMLPreview content={content} filePath={metadata?.filePath} hideToolbar />,
+      url: () => <URLViewer url={content} title={metadata?.title} />,
     };
     return renderers[contentType]?.() || <Empty description={t('conversation.workspace.previewEmpty', { defaultValue: '请选择文件预览' })} />;
   };
@@ -702,6 +726,27 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({ conversation_id, workspace, e
 
         {/* Directory Selection Modal (for WebUI only) */}
         <DirectorySelectionModal visible={showDirectorySelector} onConfirm={handleSelectDirectoryFromModal} onCancel={() => setShowDirectorySelector(false)} />
+
+        {/* URL Preview Modal */}
+        <Modal
+          visible={showUrlPreviewModal}
+          title='Open URL'
+          onCancel={() => setShowUrlPreviewModal(false)}
+          onOk={openUrlPreviewFromInput}
+          okText={t('common.confirm', { defaultValue: 'Confirm' })}
+          cancelText={t('common.cancel', { defaultValue: 'Cancel' })}
+          style={{ borderRadius: '12px' }}
+          alignCenter
+          getPopupContainer={() => document.body}
+        >
+          <Input
+            autoFocus
+            value={urlPreviewInput}
+            onChange={(v) => setUrlPreviewInput(v)}
+            placeholder='https://localhost:7878'
+            onPressEnter={openUrlPreviewFromInput}
+          />
+        </Modal>
 
         {/* Search Input - 最上方 */}
         <div className='px-12px'>
@@ -966,7 +1011,22 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({ conversation_id, workspace, e
               </FlexFullContainer>
             </div>
             <div className='flex-1 min-w-0 border-l border-b-base flex flex-col'>
-              <div className='h-32px px-12px flex items-center bg-bg-2 text-12px text-t-secondary border-b border-b-base'>{workspacePreview?.metadata?.fileName || t('conversation.workspace.previewTitle', { defaultValue: 'Preview' })}</div>
+              <div className='h-32px px-12px flex items-center justify-between gap-8px bg-bg-2 text-12px text-t-secondary border-b border-b-base'>
+                <div className='min-w-0 truncate'>{workspacePreview?.metadata?.fileName || t('conversation.workspace.previewTitle', { defaultValue: 'Preview' })}</div>
+                <Tooltip content='Open URL'>
+                  <button
+                    type='button'
+                    className='px-10px h-22px rounded-6px text-12px border border-border-1 bg-bg-1 text-t-secondary hover:bg-bg-3 transition-colors flex-shrink-0'
+                    onClick={() => {
+                      const current = workspacePreview?.contentType === 'url' ? (workspacePreview.content || '') : '';
+                      setUrlPreviewInput(current);
+                      setShowUrlPreviewModal(true);
+                    }}
+                  >
+                    URL
+                  </button>
+                </Tooltip>
+              </div>
               <div className='flex-1 min-h-0'>{renderWorkspacePreview()}</div>
             </div>
           </div>

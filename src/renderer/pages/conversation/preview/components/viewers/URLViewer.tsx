@@ -7,6 +7,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Left, Right, Refresh, Loading } from '@icon-park/react';
+import { isElectronDesktop } from '@/renderer/utils/platform';
 
 interface URLViewerProps {
   /** URL to display */
@@ -26,16 +27,18 @@ interface URLViewerProps {
  * - 地址栏编辑 / URL editing
  * - 拦截所有链接点击，在内部导航 / Intercept all link clicks, navigate internally
  */
-const URLViewer: React.FC<URLViewerProps> = ({ url }) => {
+const URLViewer: React.FC<URLViewerProps> = ({ url, title }) => {
   const { t } = useTranslation();
-  const containerRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const webviewRef = useRef<Electron.WebviewTag | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const isDesktop = isElectronDesktop();
 
   // 导航状态 / Navigation state
   const [currentUrl, setCurrentUrl] = useState(url);
   const [inputUrl, setInputUrl] = useState(url);
   const [isLoading, setIsLoading] = useState(true);
+  const [embedError, setEmbedError] = useState(false);
 
   // 自管理的历史记录栈 / Self-managed history stacks
   const historyBackRef = useRef<string[]>([]);
@@ -57,7 +60,7 @@ const URLViewer: React.FC<URLViewerProps> = ({ url }) => {
   const navigateToWithHistory = useCallback(
     (targetUrl: string) => {
       const webviewEl = webviewRef.current;
-      if (!webviewEl || !targetUrl) return;
+      if (!targetUrl) return;
 
       // 如果 URL 相同，不做处理 / If URL is same, do nothing
       if (targetUrl === currentUrl) return;
@@ -73,14 +76,20 @@ const URLViewer: React.FC<URLViewerProps> = ({ url }) => {
       setInputUrl(targetUrl);
       setCanGoBack(historyBackRef.current.length > 0);
       setCanGoForward(false);
+      setIsLoading(true);
+      setEmbedError(false);
 
-      webviewEl.src = targetUrl;
+      if (isDesktop) {
+        if (!webviewEl) return;
+        webviewEl.src = targetUrl;
+      }
     },
-    [currentUrl]
+    [currentUrl, isDesktop]
   );
 
   // 监听 webview 事件 / Listen to webview events
   useEffect(() => {
+    if (!isDesktop) return;
     const webviewEl = webviewRef.current;
     if (!webviewEl) return;
 
@@ -236,6 +245,7 @@ const URLViewer: React.FC<URLViewerProps> = ({ url }) => {
 
   // 监听内容区域尺寸变化 / Monitor content area size changes
   useEffect(() => {
+    if (!isElectronDesktop()) return;
     const contentEl = contentRef.current;
     const webviewEl = webviewRef.current;
     if (!contentEl || !webviewEl) return;
@@ -267,11 +277,13 @@ const URLViewer: React.FC<URLViewerProps> = ({ url }) => {
     setCanGoForward(true);
     setCurrentUrl(prevUrl);
     setInputUrl(prevUrl);
+    setIsLoading(true);
+    setEmbedError(false);
 
-    if (webviewRef.current) {
+    if (isDesktop && webviewRef.current) {
       webviewRef.current.src = prevUrl;
     }
-  }, [currentUrl]);
+  }, [currentUrl, isDesktop]);
 
   // 前进 / Go forward
   const handleGoForward = useCallback(() => {
@@ -285,16 +297,28 @@ const URLViewer: React.FC<URLViewerProps> = ({ url }) => {
     setCanGoForward(historyForwardRef.current.length > 0);
     setCurrentUrl(nextUrl);
     setInputUrl(nextUrl);
+    setIsLoading(true);
+    setEmbedError(false);
 
-    if (webviewRef.current) {
+    if (isDesktop && webviewRef.current) {
       webviewRef.current.src = nextUrl;
     }
-  }, [currentUrl]);
+  }, [currentUrl, isDesktop]);
 
   // 刷新 / Refresh
   const handleRefresh = useCallback(() => {
-    webviewRef.current?.reload();
-  }, []);
+    setIsLoading(true);
+    setEmbedError(false);
+    if (isDesktop) {
+      webviewRef.current?.reload();
+      return;
+    }
+    const iframe = iframeRef.current;
+    if (iframe) {
+      // Force reload by resetting src
+      iframe.src = currentUrl;
+    }
+  }, [currentUrl, isDesktop]);
 
   // 地址栏提交 / URL bar submit
   const handleUrlSubmit = useCallback(
@@ -324,8 +348,34 @@ const URLViewer: React.FC<URLViewerProps> = ({ url }) => {
     [currentUrl]
   );
 
+  const handleOpenInBrowser = useCallback(() => {
+    if (!currentUrl) return;
+    try {
+      window.open(currentUrl, '_blank', 'noopener,noreferrer');
+    } catch {
+      // Silently ignore
+    }
+  }, [currentUrl]);
+
+  const handleIframeLoad = useCallback(() => {
+    setIsLoading(false);
+    setEmbedError(false);
+
+    // Heuristic detection for blocked embedding
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+    try {
+      const href = iframe.contentWindow?.location?.href;
+      if (href === 'about:blank' && currentUrl && currentUrl !== 'about:blank') {
+        setEmbedError(true);
+      }
+    } catch {
+      // Cross-origin access throws; assume it loaded
+    }
+  }, [currentUrl]);
+
   return (
-    <div ref={containerRef} className='h-full w-full flex flex-col bg-bg-1'>
+    <div className='h-full w-full flex flex-col bg-bg-1'>
       {/* 导航栏 / Navigation bar */}
       <div className='flex items-center gap-4px h-36px px-8px bg-bg-2 border-b border-border-1 flex-shrink-0'>
         {/* 后退按钮 / Back button */}
@@ -347,19 +397,56 @@ const URLViewer: React.FC<URLViewerProps> = ({ url }) => {
         <form onSubmit={handleUrlSubmit} className='flex-1 ml-4px'>
           <input type='text' value={inputUrl} onChange={(e) => setInputUrl(e.target.value)} onKeyDown={handleUrlKeyDown} onFocus={(e) => e.target.select()} className='w-full h-26px pl-4px pr-0 rd-4px bg-bg-3 border border-border-1 text-12px text-t-primary outline-none focus:border-primary transition-colors' placeholder='Enter URL...' />
         </form>
+
+        {/* Open in browser (WebUI fallback) */}
+        {!isDesktop && (
+          <button
+            type='button'
+            onClick={handleOpenInBrowser}
+            className='ml-4px flex items-center justify-center px-10px h-28px hover:bg-bg-3 transition-colors cursor-pointer text-12px text-t-secondary rounded-6px border border-border-1 bg-bg-1'
+            title={t('common.open', { defaultValue: 'Open' })}
+          >
+            Open
+          </button>
+        )}
       </div>
 
       {/* Webview 内容区域 / Webview content area */}
-      <div ref={contentRef} className='flex-1 overflow-hidden bg-white relative' style={{ minHeight: 0 }}>
-        <webview
-          ref={webviewRef as any}
-          src={currentUrl}
-          className='border-0 absolute left-0 top-0'
-          // @ts-expect-error webview attributes not typed
-          allowpopups='false'
-          webpreferences='contextIsolation=no, nodeIntegration=no, nativeWindowOpen=no'
-        />
-      </div>
+      {isDesktop ? (
+        <div ref={contentRef} className='flex-1 overflow-hidden bg-white relative' style={{ minHeight: 0 }}>
+          <webview
+            ref={webviewRef as any}
+            src={currentUrl}
+            className='border-0 absolute left-0 top-0'
+            // @ts-expect-error webview attributes not typed
+            allowpopups='false'
+            webpreferences='contextIsolation=no, nodeIntegration=no, nativeWindowOpen=no'
+          />
+        </div>
+      ) : (
+        <div className='flex-1 overflow-hidden bg-white relative' style={{ minHeight: 0 }}>
+          <iframe
+            ref={iframeRef}
+            src={currentUrl}
+            title={title || 'URL Preview'}
+            className='absolute inset-0 w-full h-full border-0'
+            sandbox='allow-forms allow-scripts allow-same-origin allow-popups'
+            referrerPolicy='no-referrer'
+            onLoad={handleIframeLoad}
+          />
+          {embedError && (
+            <div className='absolute inset-0 flex items-center justify-center px-24px'>
+              <div className='max-w-520px w-full rounded-12px p-16px bg-bg-2 border border-border-1 text-center'>
+                <div className='text-14px text-t-primary mb-6px'>This page cannot be embedded.</div>
+                <div className='text-12px text-t-secondary mb-12px'>It may be blocked by X-Frame-Options or Content-Security-Policy.</div>
+                <button type='button' onClick={handleOpenInBrowser} className='px-14px h-30px rounded-8px border border-border-1 bg-bg-1 hover:bg-bg-3 transition-colors text-12px text-t-secondary'>
+                  Open in browser
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
