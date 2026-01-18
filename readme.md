@@ -53,6 +53,15 @@
 
 ---
 
+## Changelog
+
+### 1.7.1
+
+- Add mention support in SendBox components (mention options, keyboard navigation, collab integration).
+- Improve UI/UX styling and theme consistency (inputs, buttons, modals, message visuals).
+- Enhance browser automation capabilities via agent-browser (IPC support and slash command entry).
+- Update build/docs/config templates and collaboration role guidelines.
+
 ## ✨ What Can CodeConductor Do?
 
 <p align="center">
