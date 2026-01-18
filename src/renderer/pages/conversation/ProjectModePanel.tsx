@@ -342,11 +342,6 @@ const ProjectModePanel: React.FC = () => {
               MCP
             </span>
           </div>
-          {activeProject && (
-            <div className='text-11px text-t-tertiary truncate' title={activeProject.workspace}>
-              {activeProject.workspace}
-            </div>
-          )}
         </>
       )}
       <div className='flex items-center justify-between gap-8px'>

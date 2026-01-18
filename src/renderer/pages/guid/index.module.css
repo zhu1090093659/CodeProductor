@@ -9,6 +9,8 @@
 .guidInputCard {
   width: 100%;
   box-sizing: border-box;
+  background: var(--dialog-fill-0);
+  backdrop-filter: blur(10px);
 }
 
 .actionRow {

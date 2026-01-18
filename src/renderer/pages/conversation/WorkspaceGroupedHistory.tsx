@@ -16,7 +16,7 @@ import { resolveProjectIdForConversation, setActiveProjectId } from '@/renderer/
 import { Empty, Popconfirm, Input, Tooltip } from '@arco-design/web-react';
 import { DeleteOne, MessageOne, EditOne } from '@icon-park/react';
 import classNames from 'classnames';
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useConversationTabs } from './context/ConversationTabsContext';
@@ -150,17 +150,21 @@ const EXPANSION_STORAGE_KEY = 'CodeConductor_workspace_expansion';
 
 const WorkspaceGroupedHistory: React.FC<{ onSessionClick?: () => void; collapsed?: boolean }> = ({ onSessionClick, collapsed = false }) => {
   const [conversations, setConversations] = useState<TChatConversation[]>([]);
+  const hasStoredExpansionRef = useRef(false);
+  const hasAutoExpandedRef = useRef(false);
   const [expandedWorkspaces, setExpandedWorkspaces] = useState<string[]>(() => {
     // 从 localStorage 恢复展开状态
     try {
       const stored = localStorage.getItem(EXPANSION_STORAGE_KEY);
-      if (stored) {
+      if (stored !== null) {
+        hasStoredExpansionRef.current = true;
         const parsed = JSON.parse(stored);
         return Array.isArray(parsed) ? parsed : [];
       }
     } catch {
       // 忽略错误
     }
+    hasStoredExpansionRef.current = false;
     return [];
   });
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -209,9 +213,9 @@ const WorkspaceGroupedHistory: React.FC<{ onSessionClick?: () => void; collapsed
     return groupConversationsByTimelineAndWorkspace(filtered, t);
   }, [conversations, t, activeProjectId, projects]);
 
-  // 默认展开所有 workspace（仅在还未记录展开状态时执行一次）
+  // Auto-expand all workspaces only once when no persisted state exists
   useEffect(() => {
-    if (expandedWorkspaces.length > 0) return;
+    if (hasStoredExpansionRef.current || hasAutoExpandedRef.current) return;
     const allWorkspaces: string[] = [];
     timelineSections.forEach((section) => {
       section.items.forEach((item) => {
@@ -222,8 +226,9 @@ const WorkspaceGroupedHistory: React.FC<{ onSessionClick?: () => void; collapsed
     });
     if (allWorkspaces.length > 0) {
       setExpandedWorkspaces(allWorkspaces);
+      hasAutoExpandedRef.current = true;
     }
-  }, [timelineSections, expandedWorkspaces.length]);
+  }, [timelineSections]);
 
   const handleConversationClick = useCallback(
     (conv: TChatConversation) => {

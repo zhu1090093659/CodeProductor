@@ -234,8 +234,8 @@ const Guid: React.FC = () => {
     (isActive: boolean) => ({
       borderWidth: '1px',
       borderStyle: 'solid',
-      borderColor: inactiveBorderColor,
-      boxShadow: isActive ? activeShadow : 'none',
+      borderColor: isActive ? activeBorderColor : inactiveBorderColor,
+      boxShadow: isActive ? activeShadow : 'var(--shadow-sm)',
     }),
     [activeBorderColor, activeShadow, inactiveBorderColor]
   );
@@ -1226,11 +1226,12 @@ const Guid: React.FC = () => {
                     backgroundColor: 'var(--color-primary-light-1)',
                     borderColor: 'rgb(var(--primary-3))',
                     borderWidth: '1px',
+                    boxShadow: 'var(--shadow-sm)',
                   }
                 : {
                     borderWidth: '1px',
                     borderColor: isInputActive ? activeBorderColor : inactiveBorderColor,
-                    boxShadow: isInputActive ? activeShadow : 'none',
+                    boxShadow: isInputActive ? activeShadow : 'var(--shadow-md)',
                   }),
             }}
             {...dragHandlers}

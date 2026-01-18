@@ -10,7 +10,7 @@ import type { TChatConversation } from '@/common/storage';
 import { transformMessage } from '@/common/chatLib';
 import { uuid } from '@/common/utils';
 import { Select, Tag } from '@arco-design/web-react';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MessageListProvider, useAddOrUpdateMessage, useUpdateMessageList } from '@/renderer/messages/hooks';
 import MessageList from '@/renderer/messages/MessageList';
 import AcpSendBox from '../acp/AcpSendBox';
@@ -18,12 +18,22 @@ import type { AcpBackend } from '@/types/acpTypes';
 import CodexSendBox from '../codex/CodexSendBox';
 import { ConversationProvider } from '@/renderer/context/ConversationContext';
 import FlexFullContainer from '@/renderer/components/FlexFullContainer';
+import { useAddEventListener } from '@/renderer/utils/emitter';
+import { useTranslation } from 'react-i18next';
 
 type CollabRole = 'pm' | 'analyst' | 'engineer';
 
 type CollabNotifyDirective = {
   to: CollabRole;
   message: string;
+};
+
+type RoleThinkingState = Record<CollabRole, boolean>;
+
+const EMPTY_ROLE_THINKING: RoleThinkingState = {
+  pm: false,
+  analyst: false,
+  engineer: false,
 };
 
 const COLL_NOTIFY_BLOCK_RE = /```collab_notify\s*\n([\s\S]*?)```/g;
@@ -107,6 +117,7 @@ const ROLE_TAG_COLOR: Record<CollabRole, React.ComponentProps<typeof Tag>['color
 };
 
 const CollabChatInner: React.FC<{ parentConversation: TChatConversation }> = ({ parentConversation }) => {
+  const { t } = useTranslation();
   const updateList = useUpdateMessageList();
   const addOrUpdateMessage = useAddOrUpdateMessage();
   const roleMap = (parentConversation.extra as any)?.collab?.roleMap as { pm: string; analyst: string; engineer: string } | undefined;
@@ -114,6 +125,7 @@ const CollabChatInner: React.FC<{ parentConversation: TChatConversation }> = ({ 
     const v = sessionStorage.getItem(`collab_active_role_${parentConversation.id}`);
     return v === 'pm' || v === 'analyst' || v === 'engineer' ? v : 'engineer';
   });
+  const [roleThinking, setRoleThinking] = useState<RoleThinkingState>(() => ({ ...EMPTY_ROLE_THINKING }));
   const notifyDedupRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -129,8 +141,26 @@ const CollabChatInner: React.FC<{ parentConversation: TChatConversation }> = ({ 
     ]);
   }, [roleMap]);
 
+  const updateRoleThinking = useCallback((role: CollabRole, running: boolean) => {
+    setRoleThinking((prev) => (prev[role] === running ? prev : { ...prev, [role]: running }));
+  }, []);
+
   const activeConversationId = roleMap?.[activeRole];
   const workspace = parentConversation.extra?.workspace;
+
+  useEffect(() => {
+    setRoleThinking({ ...EMPTY_ROLE_THINKING });
+  }, [parentConversation.id, roleMap?.pm, roleMap?.analyst, roleMap?.engineer]);
+
+  useAddEventListener(
+    'conversation.thought.update',
+    (payload) => {
+      const role = roleByConversationId.get(payload.conversationId);
+      if (!role) return;
+      updateRoleThinking(role, payload.running);
+    },
+    [roleByConversationId, updateRoleThinking]
+  );
 
   // Initial load: merge messages from all children into one list.
   useEffect(() => {
@@ -159,6 +189,23 @@ const CollabChatInner: React.FC<{ parentConversation: TChatConversation }> = ({ 
   useEffect(() => {
     if (!roleMap) return;
     const children = new Set([roleMap.pm, roleMap.analyst, roleMap.engineer]);
+
+    const updateThinkingFromMessage = (message: { type: string; conversation_id: string }) => {
+      const role = roleByConversationId.get(message.conversation_id);
+      if (!role) return;
+      switch (message.type) {
+        case 'thought':
+        case 'start':
+          updateRoleThinking(role, true);
+          break;
+        case 'finish':
+        case 'error':
+          updateRoleThinking(role, false);
+          break;
+        default:
+          break;
+      }
+    };
 
     const maybeDispatchNotify = async (sourceConversationId: string) => {
       try {
@@ -202,6 +249,7 @@ const CollabChatInner: React.FC<{ parentConversation: TChatConversation }> = ({ 
 
     const handle = (message: { type: string; conversation_id: string; msg_id: string; data: unknown }) => {
       if (!children.has(message.conversation_id)) return;
+      updateThinkingFromMessage(message);
       if (message.type === 'finish') {
         void maybeDispatchNotify(message.conversation_id);
         return;
@@ -219,7 +267,7 @@ const CollabChatInner: React.FC<{ parentConversation: TChatConversation }> = ({ 
       unsubAcp?.();
       unsubCodex?.();
     };
-  }, [activeConversationId, addOrUpdateMessage, roleMap]);
+  }, [activeConversationId, addOrUpdateMessage, roleMap, roleByConversationId, updateRoleThinking]);
 
   const messageHeader = useMemo(() => {
     return (message: TMessage) => {
@@ -240,6 +288,10 @@ const CollabChatInner: React.FC<{ parentConversation: TChatConversation }> = ({ 
       label: ROLE_LABEL[role],
     }));
   }, []);
+
+  const activeThinkingRoles = useMemo(() => {
+    return (['pm', 'analyst', 'engineer'] as CollabRole[]).filter((role) => roleThinking[role]);
+  }, [roleThinking]);
 
   if (!roleMap || !activeConversationId || !workspace) {
     return (
@@ -272,12 +324,33 @@ const CollabChatInner: React.FC<{ parentConversation: TChatConversation }> = ({ 
           <MessageList renderMessageHeader={messageHeader} />
         </FlexFullContainer>
 
+        {activeThinkingRoles.length > 0 && (
+          <div className='collab-thinking-indicator'>
+            <div className='collab-thinking-indicator__title'>{t('messages.conversationInProgress')}</div>
+            <div className='collab-thinking-indicator__roles'>
+              {activeThinkingRoles.map((role) => (
+                <div key={role} className='collab-thinking-indicator__item'>
+                  <Tag size='small' color={ROLE_TAG_COLOR[role]} bordered>
+                    {ROLE_LABEL[role]}
+                  </Tag>
+                  <span className='collab-thinking-indicator__dots' aria-hidden='true'>
+                    <span className='collab-thinking-indicator__dot' />
+                    <span className='collab-thinking-indicator__dot' />
+                    <span className='collab-thinking-indicator__dot' />
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {parentConversation.type === 'acp' ? (
           <AcpSendBox
             conversation_id={activeConversationId}
             backend={(parentConversation.extra as any)?.backend || ('claude' as AcpBackend)}
             mentionOptions={mentionOptions}
             onMentionSelect={(key) => setActiveRole(key as CollabRole)}
+            optimisticUserMessage
           />
         ) : (
           <CodexSendBox conversation_id={activeConversationId} mentionOptions={mentionOptions} onMentionSelect={(key) => setActiveRole(key as CollabRole)} />

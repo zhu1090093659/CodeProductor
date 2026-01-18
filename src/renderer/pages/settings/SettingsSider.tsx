@@ -64,6 +64,7 @@ const SettingsSider: React.FC<{ collapsed?: boolean }> = ({ collapsed = false })
             <div
               className={classNames('settings-sider__item hover:bg-aou-1 px-12px py-8px rd-8px flex justify-start items-center group cursor-pointer relative overflow-hidden group shrink-0 conversation-item [&.conversation-item+&.conversation-item]:mt-2px', {
                 '!bg-aou-2 ': isSelected,
+                'settings-sider__item--active': isSelected,
               })}
               onClick={() => {
                 Promise.resolve(navigate(`/settings/${item.path}`, { replace: true })).catch((error) => {

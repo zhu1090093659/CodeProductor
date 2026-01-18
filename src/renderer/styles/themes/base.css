@@ -194,6 +194,27 @@ body,
   overflow-x: hidden;
 }
 
+/* Premium depth surfaces / 高级质感表层 */
+.layout-sider {
+  background-color: var(--bg-2);
+  border-right: 1px solid var(--border-base);
+  box-shadow: var(--shadow-sm);
+}
+
+.layout-sider-header {
+  background-color: var(--bg-1);
+  box-shadow: inset 0 -1px 0 var(--border-base);
+}
+
+.chat-layout-header {
+  border-bottom: 1px solid var(--border-base);
+  box-shadow: var(--shadow-sm);
+}
+
+.workspace-panel-header {
+  background-color: var(--bg-1);
+}
+
 .layout-sider.collapsed .arco-layout-sider-children,
 .layout-sider.arco-layout-sider-collapsed .arco-layout-sider-children {
   overflow-x: hidden;
@@ -233,7 +254,95 @@ body,
   transition:
     padding 0.2s ease,
     margin 0.2s ease,
-    background-color 0.2s ease;
+    background-color 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.chat-history__item,
+.settings-sider__item {
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+
+.chat-history__item:hover,
+.settings-sider__item:hover {
+  border-color: var(--border-light);
+  box-shadow: var(--shadow-sm);
+}
+
+.settings-sider__item--active {
+  border-color: var(--border-base);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Collab thinking indicator */
+.collab-thinking-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 0 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-light);
+  background-color: var(--bg-1);
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm);
+}
+
+.collab-thinking-indicator__title {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.collab-thinking-indicator__roles {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.collab-thinking-indicator__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.collab-thinking-indicator__dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.collab-thinking-indicator__dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: var(--text-secondary);
+  opacity: 0.4;
+  animation: collab-thinking-pulse 1.2s infinite ease-in-out;
+}
+
+.collab-thinking-indicator__dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.collab-thinking-indicator__dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes collab-thinking-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 0.9;
+    transform: translateY(-2px);
+  }
 }
 
 .chat-history__item-name,
@@ -298,6 +407,12 @@ body,
   .chat-history__placeholder,
   .chat-history__section {
     transition: none;
+  }
+
+  .collab-thinking-indicator__dot {
+    animation: none;
+    transform: none;
+    opacity: 0.7;
   }
 }
 

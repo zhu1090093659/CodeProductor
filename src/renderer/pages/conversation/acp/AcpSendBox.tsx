@@ -32,17 +32,38 @@ const useAcpSendBoxDraft = getSendBoxDraftHook('acp', {
   uploadFile: [],
 });
 
-const useAcpMessage = (conversation_id: string) => {
+const useAcpMessage = (conversation_id: string, options?: { optimisticUserMessage?: boolean }) => {
   const addOrUpdateMessage = useAddOrUpdateMessage();
   const [running, setRunning] = useState(false);
   const thoughtRef = useRef<ThoughtData>({ subject: '', description: '' });
   const [acpStatus, setAcpStatus] = useState<'connecting' | 'connected' | 'authenticated' | 'session_active' | 'disconnected' | 'error' | null>(null);
   const [aiProcessing, setAiProcessing] = useState(false); // New loading state for AI response
+  const optimisticUserMessage = options?.optimisticUserMessage === true;
+  const optimisticMsgIdsRef = useRef<Set<string>>(new Set());
+
+  const registerOptimisticMessageId = useCallback(
+    (msgId: string) => {
+      if (!optimisticUserMessage) return;
+      optimisticMsgIdsRef.current.add(msgId);
+    },
+    [optimisticUserMessage]
+  );
+
+  const clearOptimisticMessageId = useCallback((msgId: string) => {
+    optimisticMsgIdsRef.current.delete(msgId);
+  }, []);
 
   const handleResponseMessage = useCallback(
     (message: IResponseMessage) => {
       if (conversation_id !== message.conversation_id) {
         return;
+      }
+      if (message.type === 'user_content' && optimisticUserMessage) {
+        const msgId = message.msg_id;
+        if (msgId && optimisticMsgIdsRef.current.has(msgId)) {
+          optimisticMsgIdsRef.current.delete(msgId);
+          return;
+        }
       }
       const transformedMessage = transformMessage(message);
       switch (message.type) {
@@ -112,7 +133,7 @@ const useAcpMessage = (conversation_id: string) => {
           break;
       }
     },
-    [conversation_id, addOrUpdateMessage, setRunning, setAiProcessing, setAcpStatus]
+    [conversation_id, addOrUpdateMessage, setRunning, setAiProcessing, setAcpStatus, optimisticUserMessage]
   );
 
   useEffect(() => {
@@ -132,7 +153,7 @@ const useAcpMessage = (conversation_id: string) => {
     });
   }, [conversation_id]);
 
-  return { running, acpStatus, aiProcessing, setAiProcessing };
+  return { running, acpStatus, aiProcessing, setAiProcessing, registerOptimisticMessageId, clearOptimisticMessageId };
 };
 
 const EMPTY_AT_PATH: Array<string | FileOrFolderItem> = [];
@@ -175,9 +196,12 @@ const AcpSendBox: React.FC<{
   backend: AcpBackend;
   mentionOptions?: Array<{ key: string; label: string }>;
   onMentionSelect?: (key: string) => void;
-}> = ({ conversation_id, backend, mentionOptions, onMentionSelect }) => {
+  optimisticUserMessage?: boolean;
+}> = ({ conversation_id, backend, mentionOptions, onMentionSelect, optimisticUserMessage }) => {
   const [workspacePath, setWorkspacePath] = useState('');
-  const { running, acpStatus, aiProcessing, setAiProcessing } = useAcpMessage(conversation_id);
+  const { running, acpStatus, aiProcessing, setAiProcessing, registerOptimisticMessageId, clearOptimisticMessageId } = useAcpMessage(conversation_id, {
+    optimisticUserMessage,
+  });
   const { t } = useTranslation();
   const { checkAndUpdateTitle } = useAutoTitle();
   const { commands: slashCommands } = useSlashCommands();
@@ -319,6 +343,20 @@ const AcpSendBox: React.FC<{
 
     const displayMessage = buildDisplayMessage(finalMessage, uploadFile, workspacePath);
 
+    if (optimisticUserMessage) {
+      registerOptimisticMessageId(msg_id);
+      const userMessage: TMessage = {
+        id: msg_id,
+        msg_id,
+        type: 'text',
+        position: 'right',
+        conversation_id,
+        content: { content: displayMessage },
+        createdAt: Date.now(),
+      };
+      addOrUpdateMessageRef.current(userMessage, true);
+    }
+
     // 立即清空输入框，避免用户误以为消息没发送
     // Clear input immediately to avoid user thinking message wasn't sent
     setContent('');
@@ -334,15 +372,39 @@ const AcpSendBox: React.FC<{
 
     // Send message via ACP
     try {
-      await ipcBridge.acpConversation.sendMessage.invoke({
+      const result = await ipcBridge.acpConversation.sendMessage.invoke({
         input: displayMessage,
         msg_id,
         conversation_id,
         files: uploadFile,
       });
+      if (result && result.success === false) {
+        clearOptimisticMessageId(msg_id);
+        setAiProcessing(false);
+        emitter.emit('conversation.thought.update', {
+          conversationId: conversation_id,
+          thought: { subject: '', description: '' },
+          running: false,
+        });
+        const errorMessage: TMessage = {
+          id: uuid(),
+          msg_id: uuid(),
+          conversation_id,
+          type: 'tips',
+          position: 'center',
+          content: {
+            content: result.msg || 'Failed to send message. Please try again.',
+            type: 'error',
+          },
+          createdAt: Date.now() + 2,
+        };
+        addOrUpdateMessageRef.current(errorMessage, true);
+        return;
+      }
       void checkAndUpdateTitle(conversation_id, finalMessage);
       emitter.emit('chat.history.refresh');
     } catch (error: unknown) {
+      clearOptimisticMessageId(msg_id);
       const errorMsg = error instanceof Error ? error.message : String(error);
       // Check if it's an ACP authentication error
       const isAuthError = errorMsg.includes('[ACP-AUTH-') || errorMsg.includes('authentication failed') || errorMsg.includes('认证失败');
