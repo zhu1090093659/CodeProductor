@@ -52,6 +52,13 @@
 
 ## 更新日志
 
+### 1.7.2
+
+- 新增：CLI 供应商设置页（Claude Code / Codex）。
+- 新增：`CollabChat` 视图与 `MessageList` 工具消息批量折叠，提升长对话可读性。
+- 优化：终端与进程能力（基于 PTY 的终端管理、agent-browser 命令执行、worker 进程管理）。
+- 修复/文档：修正文档链接与地址，补充与 AionUI/Cowork 的关系说明；新增社区行为准则（Code of Conduct）。
+
 ### 1.7.1
 
 - 为 SendBox 系列组件加入提及能力（候选项、键盘选择、协作会话联动）。

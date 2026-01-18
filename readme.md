@@ -54,6 +54,13 @@
 
 ## Changelog
 
+### 1.7.2
+
+- Add a settings page for configuring CLI providers (Claude Code / Codex).
+- Add `CollabChat` view and `MessageList` with collapsible tool message batches for better readability.
+- Improve terminal and process handling (PTY-based terminal management, agent-browser command execution, worker process management).
+- Fix documentation links/addresses and clarify fork positioning; add Contributor Covenant Code of Conduct.
+
 ### 1.7.1
 
 - Add mention support in SendBox components (mention options, keyboard navigation, collab integration).
