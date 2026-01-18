@@ -96,11 +96,7 @@ const MessageAcpToolCall: React.FC<{ message: IMessageAcpToolCall }> = ({ messag
               <StatusTag status={status} />
             </div>
             {hasDetails && (
-              <button
-                type='button'
-                className='flex items-center gap-4px text-xs text-t-secondary hover:text-t-primary transition-colors border-none bg-transparent cursor-pointer shrink-0'
-                onClick={() => setIsCollapsed((prev) => !prev)}
-              >
+              <button type='button' className='flex items-center gap-4px text-xs text-t-secondary hover:text-t-primary transition-colors border-none bg-transparent cursor-pointer shrink-0' onClick={() => setIsCollapsed((prev) => !prev)}>
                 <span>{isCollapsed ? t('common.expandMore') : t('common.collapse')}</span>
                 {isCollapsed ? <Down theme='outline' size={14} fill='currentColor' /> : <Up theme='outline' size={14} fill='currentColor' />}
               </button>

@@ -16,11 +16,6 @@ import { updateWorkspaceTime } from '@/renderer/utils/workspaceHistory';
 import ClaudeLogo from '@/renderer/assets/logos/claude.svg';
 import CodexLogo from '@/renderer/assets/logos/codex.svg';
 import coworkSvg from '@/renderer/assets/cowork.svg';
-import GooseLogo from '@/renderer/assets/logos/goose.svg';
-import IflowLogo from '@/renderer/assets/logos/iflow.svg';
-import KimiLogo from '@/renderer/assets/logos/kimi.svg';
-import OpenCodeLogo from '@/renderer/assets/logos/opencode.svg';
-import QwenLogo from '@/renderer/assets/logos/qwen.svg';
 import FilePreview from '@/renderer/components/FilePreview';
 import { useLayoutContext } from '@/renderer/context/LayoutContext';
 import { useInputFocusRing } from '@/renderer/hooks/useInputFocusRing';
@@ -181,12 +176,7 @@ const useModelList = (selectedAgentKey: string, selectedAgentPresetType?: CliPro
 // Agent Logo 映射 (custom uses Robot icon from @icon-park/react)
 const AGENT_LOGO_MAP: Partial<Record<AcpBackend, string>> = {
   claude: ClaudeLogo,
-  qwen: QwenLogo,
   codex: CodexLogo,
-  iflow: IflowLogo,
-  goose: GooseLogo,
-  kimi: KimiLogo,
-  opencode: OpenCodeLogo,
 };
 const CUSTOM_AVATAR_IMAGE_MAP: Record<string, string> = {
   'cowork.svg': coworkSvg,

@@ -267,13 +267,17 @@ const HTMLPreview: React.FC<HTMLPreviewProps> = ({ content, filePath, hideToolba
       void webview.executeJavaScript(inspectorScript).catch(() => {});
     } else {
       // Remove inspector overlay when disabled
-      void webview.executeJavaScript(`
+      void webview
+        .executeJavaScript(
+          `
         (function() {
           const overlay = document.querySelector('[style*="z-index: 999999"]');
           if (overlay) overlay.remove();
           window.__inspectorInitialized = false;
         })();
-      `).catch(() => {});
+      `
+        )
+        .catch(() => {});
     }
   }, [inspectorMode, inspectorScript]);
 
@@ -427,14 +431,7 @@ const HTMLPreview: React.FC<HTMLPreviewProps> = ({ content, filePath, hideToolba
 
         {/* HTML Preview using webview */}
         <div className={`${editMode ? 'flex-1' : 'w-full'} overflow-hidden ${currentTheme === 'dark' ? 'bg-bg-1' : 'bg-white'}`}>
-          <webview
-            key={webviewSrc}
-            ref={webviewRef}
-            src={webviewSrc}
-            className='w-full h-full border-0'
-            style={{ display: 'inline-flex' }}
-            webpreferences='allowRunningInsecureContent, javascript=yes'
-          />
+          <webview key={webviewSrc} ref={webviewRef} src={webviewSrc} className='w-full h-full border-0' style={{ display: 'inline-flex' }} webpreferences='allowRunningInsecureContent, javascript=yes' />
         </div>
       </div>
 

@@ -115,17 +115,7 @@ const CliProviderSettings: React.FC<{ embedded?: boolean }> = ({ embedded = fals
         if (!preset) return;
         const env = buildClaudeEnv(preset, config);
         const shouldUseOfficial = isOfficialCliPreset(preset) && !config.apiKey;
-        const clearEnvKeys = shouldUseOfficial
-          ? [
-              'ANTHROPIC_AUTH_TOKEN',
-              'ANTHROPIC_API_KEY',
-              'ANTHROPIC_BASE_URL',
-              'ANTHROPIC_MODEL',
-              'ANTHROPIC_DEFAULT_HAIKU_MODEL',
-              'ANTHROPIC_DEFAULT_SONNET_MODEL',
-              'ANTHROPIC_DEFAULT_OPUS_MODEL',
-            ]
-          : undefined;
+        const clearEnvKeys = shouldUseOfficial ? ['ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_API_KEY', 'ANTHROPIC_BASE_URL', 'ANTHROPIC_MODEL', 'ANTHROPIC_DEFAULT_HAIKU_MODEL', 'ANTHROPIC_DEFAULT_SONNET_MODEL', 'ANTHROPIC_DEFAULT_OPUS_MODEL'] : undefined;
         const result = await applyProvider({ target, env, clearEnvKeys });
         if (result.success) {
           message.success('Claude Code settings updated');
@@ -259,10 +249,7 @@ const CliProviderSettings: React.FC<{ embedded?: boolean }> = ({ embedded = fals
               onChange={(value) => {
                 const nextPreset = presets.find((p) => p.name === value);
                 const baseUrl = nextPreset?.settingsConfig?.env?.['ANTHROPIC_BASE_URL'] || nextPreset?.endpointCandidates?.[0] || '';
-                const model =
-                  (nextPreset as { model?: string })?.model ||
-                  nextPreset?.settingsConfig?.env?.['ANTHROPIC_MODEL']?.toString() ||
-                  '';
+                const model = (nextPreset as { model?: string })?.model || nextPreset?.settingsConfig?.env?.['ANTHROPIC_MODEL']?.toString() || '';
                 const nextConfigs = {
                   ...configs,
                   [target]: {
@@ -298,24 +285,14 @@ const CliProviderSettings: React.FC<{ embedded?: boolean }> = ({ embedded = fals
               {target === 'codex' ? (
                 <div>
                   Then run <span className='font-mono'>codex login</span> in your terminal if needed. See official docs:{' '}
-                  <a
-                    href='https://developers.openai.com/codex/auth'
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    className='text-[rgb(var(--primary-6))]'
-                  >
+                  <a href='https://developers.openai.com/codex/auth' target='_blank' rel='noopener noreferrer' className='text-[rgb(var(--primary-6))]'>
                     Codex auth
                   </a>
                 </div>
               ) : (
                 <div>
                   Then run <span className='font-mono'>claude</span> and use <span className='font-mono'>/login</span> if needed. See official docs:{' '}
-                  <a
-                    href='https://docs.anthropic.com/en/docs/claude-code/quickstart'
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    className='text-[rgb(var(--primary-6))]'
-                  >
+                  <a href='https://docs.anthropic.com/en/docs/claude-code/quickstart' target='_blank' rel='noopener noreferrer' className='text-[rgb(var(--primary-6))]'>
                     Claude Code quickstart
                   </a>
                 </div>
@@ -324,22 +301,13 @@ const CliProviderSettings: React.FC<{ embedded?: boolean }> = ({ embedded = fals
           )}
 
           <Form.Item label='API Key'>
-            <Input.Password
-              placeholder={isOfficial ? 'Optional (leave empty to use browser login)' : 'Enter API key'}
-              value={config.apiKey || ''}
-              onChange={(value) => void saveConfigs({ ...configs, [target]: { ...configs[target], apiKey: value } })}
-            />
+            <Input.Password placeholder={isOfficial ? 'Optional (leave empty to use browser login)' : 'Enter API key'} value={config.apiKey || ''} onChange={(value) => void saveConfigs({ ...configs, [target]: { ...configs[target], apiKey: value } })} />
           </Form.Item>
 
           {!isOfficial &&
             (endpointCandidates.length > 0 ? (
               <Form.Item label='Base URL'>
-                <Select
-                  allowCreate
-                  value={config.baseUrl}
-                  placeholder='Select or input base url'
-                  onChange={(value) => void saveConfigs({ ...configs, [target]: { ...configs[target], baseUrl: value } })}
-                >
+                <Select allowCreate value={config.baseUrl} placeholder='Select or input base url' onChange={(value) => void saveConfigs({ ...configs, [target]: { ...configs[target], baseUrl: value } })}>
                   {endpointCandidates.map((url) => (
                     <Select.Option key={url} value={url}>
                       {url}
@@ -349,11 +317,7 @@ const CliProviderSettings: React.FC<{ embedded?: boolean }> = ({ embedded = fals
               </Form.Item>
             ) : (
               <Form.Item label='Base URL'>
-                <Input
-                  placeholder='Optional base url'
-                  value={config.baseUrl || ''}
-                  onChange={(value) => void saveConfigs({ ...configs, [target]: { ...configs[target], baseUrl: value } })}
-                />
+                <Input placeholder='Optional base url' value={config.baseUrl || ''} onChange={(value) => void saveConfigs({ ...configs, [target]: { ...configs[target], baseUrl: value } })} />
               </Form.Item>
             ))}
 
@@ -361,14 +325,7 @@ const CliProviderSettings: React.FC<{ embedded?: boolean }> = ({ embedded = fals
             <div className='space-y-10px'>
               <div className='flex items-center justify-between gap-12px'>
                 <div className='text-12px text-t-secondary'>{t('settings.enabledModels')}</div>
-                <Button
-                  size='mini'
-                  type='secondary'
-                  shape='round'
-                  className='px-10px'
-                  icon={<Download theme='outline' size={14} />}
-                  onClick={() => void handleFetchModels()}
-                >
+                <Button size='mini' type='secondary' shape='round' className='px-10px' icon={<Download theme='outline' size={14} />} onClick={() => void handleFetchModels()}>
                   {t('settings.fetchModels')}
                 </Button>
               </div>

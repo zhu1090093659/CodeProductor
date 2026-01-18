@@ -42,26 +42,7 @@ const SendBox: React.FC<{
   slashCommands?: SlashCommandItem[];
   mentionOptions?: Array<{ key: string; label: string }>;
   onMentionSelect?: (key: string) => void;
-}> = ({
-  onSend,
-  onStop,
-  prefix,
-  className,
-  loading,
-  tools,
-  disabled,
-  placeholder,
-  value: input = '',
-  onChange: setInput = constVoid,
-  onFilesAdded,
-  supportedExts = allSupportedExts,
-  defaultMultiLine = false,
-  lockMultiLine = false,
-  sendButtonPrefix,
-  slashCommands = [],
-  mentionOptions,
-  onMentionSelect,
-}) => {
+}> = ({ onSend, onStop, prefix, className, loading, tools, disabled, placeholder, value: input = '', onChange: setInput = constVoid, onFilesAdded, supportedExts = allSupportedExts, defaultMultiLine = false, lockMultiLine = false, sendButtonPrefix, slashCommands = [], mentionOptions, onMentionSelect }) => {
   const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
   const [isSingleLine, setIsSingleLine] = useState(!defaultMultiLine);
@@ -250,7 +231,6 @@ const SendBox: React.FC<{
     }
   }, [mentionEnabled]);
 
-
   // 使用共享的PasteService集成
   const { onPaste, onFocus: handlePasteFocus } = usePasteService({
     supportedExts,
@@ -299,18 +279,18 @@ const SendBox: React.FC<{
     [mentionEnabled, mentionMatchRegex]
   );
 
-  const syncCursorIndex = useCallback((target?: HTMLTextAreaElement | null, value?: string) => {
-    const element =
-      target ||
-      (document.activeElement && (document.activeElement as HTMLTextAreaElement)) ||
-      (containerRef.current?.querySelector('textarea') as HTMLTextAreaElement | null);
-    if (element && typeof element.selectionStart === 'number') {
-      const cursor = element.selectionStart;
-      setCursorIndex(cursor);
-      const resolvedValue = value ?? latestInputRef.current;
-      updateMentionState(resolvedValue, cursor);
-    }
-  }, [latestInputRef, updateMentionState]);
+  const syncCursorIndex = useCallback(
+    (target?: HTMLTextAreaElement | null, value?: string) => {
+      const element = target || (document.activeElement && (document.activeElement as HTMLTextAreaElement)) || (containerRef.current?.querySelector('textarea') as HTMLTextAreaElement | null);
+      if (element && typeof element.selectionStart === 'number') {
+        const cursor = element.selectionStart;
+        setCursorIndex(cursor);
+        const resolvedValue = value ?? latestInputRef.current;
+        updateMentionState(resolvedValue, cursor);
+      }
+    },
+    [latestInputRef, updateMentionState]
+  );
 
   const sendMessageHandler = () => {
     const currentInput = latestInputRef.current;
@@ -454,18 +434,7 @@ const SendBox: React.FC<{
       }
       baseKeyDownHandler(e);
     },
-    [
-      activeCommandIndex,
-      applyCommandSelection,
-      applyMentionSelection,
-      baseKeyDownHandler,
-      filteredCommands,
-      filteredMentionOptions,
-      isCommandMenuOpen,
-      isComposing,
-      isMentionMenuOpen,
-      mentionActiveIndex,
-    ]
+    [activeCommandIndex, applyCommandSelection, applyMentionSelection, baseKeyDownHandler, filteredCommands, filteredMentionOptions, isCommandMenuOpen, isComposing, isMentionMenuOpen, mentionActiveIndex]
   );
 
   const stopHandler = async () => {

@@ -20,11 +20,7 @@ const ChatSider: React.FC<{
     return <div></div>;
   }
 
-  return (
-    <>
-      {workspaceNode}
-    </>
-  );
+  return <>{workspaceNode}</>;
 };
 
 export default ChatSider;

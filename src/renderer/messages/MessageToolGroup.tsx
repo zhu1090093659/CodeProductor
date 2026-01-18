@@ -407,7 +407,7 @@ const MessageToolGroup: React.FC<IMessageToolGroupProps> = ({ message }) => {
         const isLoading = status !== 'Success' && status !== 'Error' && status !== 'Canceled';
 
         const forceOpen = status === 'Confirming' || Boolean(confirmationDetails);
-        const isCollapsed = forceOpen ? false : collapsedMap[callId] ?? true;
+        const isCollapsed = forceOpen ? false : (collapsedMap[callId] ?? true);
         const toggle = () => {
           if (forceOpen) return;
           setCollapsedMap((prev) => ({ ...prev, [callId]: !isCollapsed }));

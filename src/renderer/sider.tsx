@@ -69,7 +69,7 @@ const Sider: React.FC<SiderProps> = ({ onSessionClick, collapsed = false }) => {
               <span className='collapsed-hidden font-bold text-t-primary'>{t('conversation.welcome.newConversation')}</span>
             </div>
           </Tooltip>
-        {!collapsed && <ProjectModePanel />}
+          {!collapsed && <ProjectModePanel />}
           <WorkspaceGroupedHistory collapsed={collapsed} onSessionClick={onSessionClick}></WorkspaceGroupedHistory>
         </>
       )}

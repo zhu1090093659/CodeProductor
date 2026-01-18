@@ -30,10 +30,11 @@ export function generateThirdPartyAuth(apiKey: string): Record<string, unknown> 
 }
 
 export function generateThirdPartyConfig(providerName: string, baseUrl: string, modelName = 'gpt-5.1-codex'): string {
-  const cleanProviderName = providerName
-    .toLowerCase()
-    .replace(/[^a-z0-9_]/g, '_')
-    .replace(/^_+|_+$/g, '') || 'custom';
+  const cleanProviderName =
+    providerName
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, '_')
+      .replace(/^_+|_+$/g, '') || 'custom';
 
   return `model_provider = "${cleanProviderName}"
 model = "${modelName}"

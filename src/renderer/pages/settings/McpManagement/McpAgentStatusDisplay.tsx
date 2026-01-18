@@ -1,10 +1,5 @@
 import ClaudeLogo from '@/renderer/assets/logos/claude.svg';
 import CodexLogo from '@/renderer/assets/logos/codex.svg';
-import GooseLogo from '@/renderer/assets/logos/goose.svg';
-import IflowLogo from '@/renderer/assets/logos/iflow.svg';
-import KimiLogo from '@/renderer/assets/logos/kimi.svg';
-import OpenCodeLogo from '@/renderer/assets/logos/opencode.svg';
-import QwenLogo from '@/renderer/assets/logos/qwen.svg';
 import { Tag, Tooltip } from '@arco-design/web-react';
 import { LoadingOne } from '@icon-park/react';
 import React from 'react';
@@ -18,12 +13,7 @@ interface McpAgentStatusDisplayProps {
 
 const AGENT_LOGO_MAP: Record<string, string> = {
   claude: ClaudeLogo,
-  qwen: QwenLogo,
-  iflow: IflowLogo,
   codex: CodexLogo,
-  goose: GooseLogo,
-  kimi: KimiLogo,
-  opencode: OpenCodeLogo,
 };
 
 const getAgentLogo = (agent: string): string | null => {

@@ -54,36 +54,36 @@ const resolveAgentBrowserCommand = (cliPath?: string): { command: string; args: 
 };
 
 export function initTerminalBridge(): void {
-  ipcBridge.terminal.spawn.provider(async (params) => {
+  ipcBridge.terminal.spawn.provider((params) => {
     try {
       const id = terminalService.spawnTerminal(params || {});
-      return { success: true, data: { id } };
+      return Promise.resolve({ success: true, data: { id } });
     } catch (error) {
-      return { success: false, msg: error instanceof Error ? error.message : String(error) };
+      return Promise.resolve({ success: false, msg: error instanceof Error ? error.message : String(error) });
     }
   });
 
-  ipcBridge.terminal.write.provider(async ({ id, data }) => {
+  ipcBridge.terminal.write.provider(({ id, data }) => {
     terminalService.write(id, data);
-    return { success: true };
+    return Promise.resolve({ success: true });
   });
 
-  ipcBridge.terminal.resize.provider(async ({ id, cols, rows }) => {
+  ipcBridge.terminal.resize.provider(({ id, cols, rows }) => {
     terminalService.resize(id, cols, rows);
-    return { success: true };
+    return Promise.resolve({ success: true });
   });
 
-  ipcBridge.terminal.dispose.provider(async ({ id }) => {
+  ipcBridge.terminal.dispose.provider(({ id }) => {
     terminalService.dispose(id);
-    return { success: true };
+    return Promise.resolve({ success: true });
   });
 
-  ipcBridge.terminal.disposeByCwd.provider(async ({ cwd }) => {
+  ipcBridge.terminal.disposeByCwd.provider(({ cwd }) => {
     try {
       const count = terminalService.disposeByCwd(cwd);
-      return { success: true, data: { count } };
+      return Promise.resolve({ success: true, data: { count } });
     } catch (error) {
-      return { success: false, msg: error instanceof Error ? error.message : String(error) };
+      return Promise.resolve({ success: false, msg: error instanceof Error ? error.message : String(error) });
     }
   });
 
@@ -92,7 +92,7 @@ export function initTerminalBridge(): void {
     if (!args.length) {
       return { success: false, msg: 'Missing agent-browser arguments' };
     }
-    const storedConfig = await ConfigStorage.get('tools.agentBrowser').catch(() => undefined);
+    const storedConfig = await ConfigStorage.get('tools.agentBrowser').catch((): undefined => undefined);
     const resolvedCommand = resolveAgentBrowserCommand(params?.cliPath || storedConfig?.cliPath);
     const finalArgs = [...resolvedCommand.args, ...args];
     const resolvedCwd = params?.cwd || process.cwd();

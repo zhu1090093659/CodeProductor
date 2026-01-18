@@ -154,12 +154,7 @@ let mainWindow: BrowserWindow;
 const resolveAppWindowIconPath = (): string | null => {
   // Prefer an explicit PNG for runtime window/taskbar icons (dev + packaged).
   // This should not affect the installer/executable icon formats (.ico/.icns).
-  const candidates = [
-    path.resolve(__dirname, '..', '..', 'resources', 'cc_logo.png'),
-    path.join(process.resourcesPath, 'cc_logo.png'),
-    path.join(process.resourcesPath, 'resources', 'cc_logo.png'),
-    path.join(app.getAppPath(), 'resources', 'cc_logo.png'),
-  ];
+  const candidates = [path.resolve(__dirname, '..', '..', 'resources', 'cc_logo.png'), path.join(process.resourcesPath, 'cc_logo.png'), path.join(process.resourcesPath, 'resources', 'cc_logo.png'), path.join(app.getAppPath(), 'resources', 'cc_logo.png')];
 
   for (const candidate of candidates) {
     try {

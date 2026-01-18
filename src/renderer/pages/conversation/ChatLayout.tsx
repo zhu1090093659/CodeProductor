@@ -15,22 +15,12 @@ import useSWR from 'swr';
 
 import ClaudeLogo from '@/renderer/assets/logos/claude.svg';
 import CodexLogo from '@/renderer/assets/logos/codex.svg';
-import GooseLogo from '@/renderer/assets/logos/goose.svg';
-import IflowLogo from '@/renderer/assets/logos/iflow.svg';
-import KimiLogo from '@/renderer/assets/logos/kimi.svg';
-import OpenCodeLogo from '@/renderer/assets/logos/opencode.svg';
-import QwenLogo from '@/renderer/assets/logos/qwen.svg';
 import type { AcpBackend } from '@/types/acpTypes';
 
 // Agent Logo 映射
 const AGENT_LOGO_MAP: Partial<Record<AcpBackend, string>> = {
   claude: ClaudeLogo,
-  qwen: QwenLogo,
   codex: CodexLogo,
-  iflow: IflowLogo,
-  goose: GooseLogo,
-  kimi: KimiLogo,
-  opencode: OpenCodeLogo,
 };
 
 import { iconColors } from '@/renderer/theme/colors';
@@ -118,21 +108,11 @@ const ChatLayout: React.FC<{
   // 预览面板状态 / Preview panel state
   const { isOpen: isPreviewOpen } = usePreviewContext();
 
-  // Fetch custom agents config as fallback when agentName is not provided
-  const { data: customAgents } = useSWR(backend === 'custom' && !agentName ? 'acp.customAgents' : null, () => ConfigStorage.get('acp.customAgents'));
-
-  // Compute display name with fallback chain (use first custom agent as fallback for backward compatibility)
-  const displayName = agentName || (backend === 'custom' && customAgents?.[0]?.name) || ACP_BACKENDS_ALL[backend as keyof typeof ACP_BACKENDS_ALL]?.name || backend || 'agent';
+  // Compute display name with fallback chain
+  const displayName = agentName || ACP_BACKENDS_ALL[backend as keyof typeof ACP_BACKENDS_ALL]?.name || backend || 'agent';
   const statusKey = props.agentStatus?.status || null;
   const statusTextFull = statusKey ? t(`acp.status.${statusKey}`, { agent: displayName }) : null;
-  const statusText =
-    statusTextFull && displayName
-      ? statusTextFull
-          .split(displayName)
-          .join('')
-          .replace(/\s+/g, ' ')
-          .trim()
-      : statusTextFull;
+  const statusText = statusTextFull && displayName ? statusTextFull.split(displayName).join('').replace(/\s+/g, ' ').trim() : statusTextFull;
   const badgeStatus: React.ComponentProps<typeof Badge>['status'] | null = (function resolveBadgeStatus() {
     if (!statusKey) return null;
     switch (statusKey) {
@@ -285,10 +265,7 @@ const ChatLayout: React.FC<{
     setRightSiderCollapsed(true);
   }, [layout?.isMobile, workspaceEnabled]);
 
-  const {
-    splitRatio: workspaceSplitRatio,
-    createDragHandle: createWorkspaceDragHandle,
-  } = useResizableSplit({
+  const { splitRatio: workspaceSplitRatio, createDragHandle: createWorkspaceDragHandle } = useResizableSplit({
     defaultWidth: 60,
     minWidth: MIN_WORKSPACE_RATIO,
     maxWidth: 75,

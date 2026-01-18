@@ -33,8 +33,6 @@ export function initAcpConversationBridge(): void {
   ipcBridge.acpConversation.checkEnv.provider(() => {
     return Promise.resolve({
       env: {
-        GEMINI_API_KEY: process.env.GEMINI_API_KEY ? '[SET]' : '[NOT SET]',
-        GOOGLE_CLOUD_PROJECT: process.env.GOOGLE_CLOUD_PROJECT ? '[SET]' : '[NOT SET]',
         NODE_ENV: process.env.NODE_ENV || '[NOT SET]',
       },
     });

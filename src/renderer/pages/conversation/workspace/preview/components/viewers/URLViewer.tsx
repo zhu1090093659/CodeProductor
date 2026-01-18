@@ -400,12 +400,7 @@ const URLViewer: React.FC<URLViewerProps> = ({ url, title }) => {
 
         {/* Open in browser (WebUI fallback) */}
         {!isDesktop && (
-          <button
-            type='button'
-            onClick={handleOpenInBrowser}
-            className='ml-4px flex items-center justify-center px-10px h-28px hover:bg-bg-3 transition-colors cursor-pointer text-12px text-t-secondary rounded-6px border border-border-1 bg-bg-1'
-            title={t('common.open', { defaultValue: 'Open' })}
-          >
+          <button type='button' onClick={handleOpenInBrowser} className='ml-4px flex items-center justify-center px-10px h-28px hover:bg-bg-3 transition-colors cursor-pointer text-12px text-t-secondary rounded-6px border border-border-1 bg-bg-1' title={t('common.open', { defaultValue: 'Open' })}>
             Open
           </button>
         )}
@@ -425,15 +420,7 @@ const URLViewer: React.FC<URLViewerProps> = ({ url, title }) => {
         </div>
       ) : (
         <div className='flex-1 overflow-hidden bg-white relative' style={{ minHeight: 0 }}>
-          <iframe
-            ref={iframeRef}
-            src={currentUrl}
-            title={title || 'URL Preview'}
-            className='absolute inset-0 w-full h-full border-0'
-            sandbox='allow-forms allow-scripts allow-same-origin allow-popups'
-            referrerPolicy='no-referrer'
-            onLoad={handleIframeLoad}
-          />
+          <iframe ref={iframeRef} src={currentUrl} title={title || 'URL Preview'} className='absolute inset-0 w-full h-full border-0' sandbox='allow-forms allow-scripts allow-same-origin allow-popups' referrerPolicy='no-referrer' onLoad={handleIframeLoad} />
           {embedError && (
             <div className='absolute inset-0 flex items-center justify-center px-24px'>
               <div className='max-w-520px w-full rounded-12px p-16px bg-bg-2 border border-border-1 text-center'>

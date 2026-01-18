@@ -19,7 +19,7 @@ declare global {
 }
 
 const RESIZE_OBSERVER_PATTERNS = ['resizeobserver loop limit exceeded', 'resizeobserver loop completed with undelivered notifications'];
-const ARCO_POPUP_POSITION_PATTERNS = ["updatepopupposition"];
+const ARCO_POPUP_POSITION_PATTERNS = ['updatepopupposition'];
 
 // Silence Arco Design Message component key warnings (internal library issue)
 // 抑制 Arco Design Message 组件的 key 警告（第三方库内部问题）

@@ -210,7 +210,7 @@ const ProjectModePanel: React.FC = () => {
         okText: t('common.confirm', { defaultValue: '确认' }),
         cancelText: t('common.cancel', { defaultValue: '取消' }),
         onOk: () => {
-          deleteProject(project.id).then((result: DeleteProjectResult) => {
+          void deleteProject(project.id).then((result: DeleteProjectResult) => {
             if (result.success) {
               if (result.workspaceRemoved) {
                 messageApi.success(t('project.deleteSuccess', { defaultValue: 'Project deleted.' }));
@@ -237,17 +237,8 @@ const ProjectModePanel: React.FC = () => {
     <div className='px-12px py-10px flex flex-col gap-12px'>
       {messageContext}
       <div className='flex items-center justify-between gap-8px'>
-        <button
-          type='button'
-          className='flex items-center gap-8px px-6px py-4px rounded-6px text-12px text-t-secondary hover:bg-hover transition-colors'
-          onClick={() => setIsProjectListCollapsed((prev) => !prev)}
-          aria-expanded={!isProjectListCollapsed}
-        >
-          <Down
-            size={14}
-            fill={iconColors.secondary}
-            className={`line-height-0 transition-transform duration-200 flex-shrink-0 ${isProjectListCollapsed ? '-rotate-90' : 'rotate-0'}`}
-          />
+        <button type='button' className='flex items-center gap-8px px-6px py-4px rounded-6px text-12px text-t-secondary hover:bg-hover transition-colors' onClick={() => setIsProjectListCollapsed((prev) => !prev)} aria-expanded={!isProjectListCollapsed}>
+          <Down size={14} fill={iconColors.secondary} className={`line-height-0 transition-transform duration-200 flex-shrink-0 ${isProjectListCollapsed ? '-rotate-90' : 'rotate-0'}`} />
           <span className='font-medium'>{t('project.title', { defaultValue: '项目' })}</span>
         </button>
         <Tooltip content={t('project.create', { defaultValue: 'New Project' })}>
@@ -274,11 +265,7 @@ const ProjectModePanel: React.FC = () => {
                 const isEditing = editingProjectId === project.id;
                 const isActive = project.id === activeProjectId;
                 return (
-                  <div
-                    key={project.id}
-                    className={`flex items-center gap-8px px-8px py-6px rounded-8px cursor-pointer group ${isActive ? 'bg-active' : 'hover:bg-hover'}`}
-                    onClick={() => handleSelectProject(project.id)}
-                  >
+                  <div key={project.id} className={`flex items-center gap-8px px-8px py-6px rounded-8px cursor-pointer group ${isActive ? 'bg-active' : 'hover:bg-hover'}`} onClick={() => handleSelectProject(project.id)}>
                     <div className='flex-1 min-w-0'>
                       {isEditing ? (
                         <Input
@@ -304,10 +291,7 @@ const ProjectModePanel: React.FC = () => {
                       )}
                     </div>
                     {!isEditing && (
-                      <div
-                        className='flex items-center gap-6px opacity-0 group-hover:opacity-100 transition-opacity'
-                        onClick={(event) => event.stopPropagation()}
-                      >
+                      <div className='flex items-center gap-6px opacity-0 group-hover:opacity-100 transition-opacity' onClick={(event) => event.stopPropagation()}>
                         <span
                           className='flex items-center justify-center'
                           onClick={() => {
@@ -316,11 +300,7 @@ const ProjectModePanel: React.FC = () => {
                         >
                           <EditOne theme='outline' size='14' />
                         </span>
-                        <Popconfirm
-                          title={t('project.deleteTitle', { defaultValue: 'Delete project' })}
-                          content={t('project.deleteConfirm', { defaultValue: 'This will remove all files, conversations, and the local folder.' })}
-                          onOk={() => confirmDeleteProject(project)}
-                        >
+                        <Popconfirm title={t('project.deleteTitle', { defaultValue: 'Delete project' })} content={t('project.deleteConfirm', { defaultValue: 'This will remove all files, conversations, and the local folder.' })} onOk={() => confirmDeleteProject(project)}>
                           <span className='flex items-center justify-center'>
                             <DeleteOne theme='outline' size='14' />
                           </span>
@@ -345,17 +325,8 @@ const ProjectModePanel: React.FC = () => {
         </>
       )}
       <div className='flex items-center justify-between gap-8px'>
-        <button
-          type='button'
-          className='flex items-center gap-8px px-6px py-4px rounded-6px text-12px text-t-secondary hover:bg-hover transition-colors'
-          onClick={() => setIsWorkspaceTreeCollapsed((prev) => !prev)}
-          aria-expanded={!isWorkspaceTreeCollapsed}
-        >
-          <Down
-            size={14}
-            fill={iconColors.secondary}
-            className={`line-height-0 transition-transform duration-200 flex-shrink-0 ${isWorkspaceTreeCollapsed ? '-rotate-90' : 'rotate-0'}`}
-          />
+        <button type='button' className='flex items-center gap-8px px-6px py-4px rounded-6px text-12px text-t-secondary hover:bg-hover transition-colors' onClick={() => setIsWorkspaceTreeCollapsed((prev) => !prev)} aria-expanded={!isWorkspaceTreeCollapsed}>
+          <Down size={14} fill={iconColors.secondary} className={`line-height-0 transition-transform duration-200 flex-shrink-0 ${isWorkspaceTreeCollapsed ? '-rotate-90' : 'rotate-0'}`} />
           <span className='font-medium'>{t('project.workspace', { defaultValue: '工作区' })}</span>
         </button>
       </div>

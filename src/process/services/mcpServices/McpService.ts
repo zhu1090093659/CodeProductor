@@ -7,8 +7,6 @@
 import type { AcpBackend } from '../../../types/acpTypes';
 import type { IMcpServer } from '../../../common/storage';
 import { ClaudeMcpAgent } from './agents/ClaudeMcpAgent';
-import { QwenMcpAgent } from './agents/QwenMcpAgent';
-import { IflowMcpAgent } from './agents/IflowMcpAgent';
 import { CodexMcpAgent } from './agents/CodexMcpAgent';
 import type { IMcpProtocol, DetectedMcpServer, McpConnectionTestResult, McpSyncResult, McpSource } from './McpProtocol';
 
@@ -25,8 +23,6 @@ export class McpService {
   constructor() {
     this.agents = new Map([
       ['claude', new ClaudeMcpAgent()],
-      ['qwen', new QwenMcpAgent()],
-      ['iflow', new IflowMcpAgent()],
       ['codex', new CodexMcpAgent()],
     ]);
   }

@@ -16,8 +16,8 @@ const DiffTab: React.FC<{ workspace: string; active: boolean }> = ({ workspace, 
   useEffect(() => {
     if (!active) return;
     setLoading(true);
-    ipcBridge.git
-      .diff.invoke({ cwd: workspace })
+    void ipcBridge.git.diff
+      .invoke({ cwd: workspace })
       .then((res) => {
         if (res?.success) {
           setDiffContent(res.data?.diff || '');

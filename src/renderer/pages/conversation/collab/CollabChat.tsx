@@ -344,17 +344,7 @@ const CollabChatInner: React.FC<{ parentConversation: TChatConversation }> = ({ 
           </div>
         )}
 
-        {parentConversation.type === 'acp' ? (
-          <AcpSendBox
-            conversation_id={activeConversationId}
-            backend={(parentConversation.extra as any)?.backend || ('claude' as AcpBackend)}
-            mentionOptions={mentionOptions}
-            onMentionSelect={(key) => setActiveRole(key as CollabRole)}
-            optimisticUserMessage
-          />
-        ) : (
-          <CodexSendBox conversation_id={activeConversationId} mentionOptions={mentionOptions} onMentionSelect={(key) => setActiveRole(key as CollabRole)} />
-        )}
+        {parentConversation.type === 'acp' ? <AcpSendBox conversation_id={activeConversationId} backend={(parentConversation.extra as any)?.backend || ('claude' as AcpBackend)} mentionOptions={mentionOptions} onMentionSelect={(key) => setActiveRole(key as CollabRole)} optimisticUserMessage /> : <CodexSendBox conversation_id={activeConversationId} mentionOptions={mentionOptions} onMentionSelect={(key) => setActiveRole(key as CollabRole)} />}
       </div>
     </ConversationProvider>
   );

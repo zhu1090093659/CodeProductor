@@ -96,7 +96,9 @@
 .arco-mentions-view {
   border: 1px solid var(--border-base);
   box-shadow: var(--shadow-inset);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .arco-input-inner-wrapper:focus-within,

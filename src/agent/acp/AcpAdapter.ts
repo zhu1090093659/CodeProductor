@@ -280,5 +280,4 @@ export class AcpAdapter {
 
     return null;
   }
-
 }

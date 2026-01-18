@@ -38,7 +38,6 @@ export const conversation = {
   responseSearchWorkSpace: bridge.buildProvider<void, { file: number; dir: number; match?: IDirOrFile }>('conversation.response.search.workspace'),
 };
 
-
 export const application = {
   restart: bridge.buildProvider<void, void>('restart-app'), // 重启应用
   openDevTools: bridge.buildProvider<void, void>('open-dev-tools'), // 打开开发者工具

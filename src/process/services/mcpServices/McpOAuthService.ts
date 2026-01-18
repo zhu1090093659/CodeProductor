@@ -57,29 +57,29 @@ export class McpOAuthService {
   /**
    * 执行 OAuth 登录流程（当前未实现）
    */
-  async login(_server: IMcpServer, _oauthConfig?: unknown): Promise<{ success: boolean; error?: string }> {
-    return { success: false, error: 'OAuth login is not available in this build.' };
+  login(_server: IMcpServer, _oauthConfig?: unknown): Promise<{ success: boolean; error?: string }> {
+    return Promise.resolve({ success: false, error: 'OAuth login is not available in this build.' });
   }
 
   /**
    * 获取有效的访问 token（当前未实现）
    */
-  async getValidToken(_server: IMcpServer, _oauthConfig?: unknown): Promise<string | null> {
-    return null;
+  getValidToken(_server: IMcpServer, _oauthConfig?: unknown): Promise<string | null> {
+    return Promise.resolve(null);
   }
 
   /**
    * 登出（当前未实现）
    */
-  async logout(_serverName: string): Promise<void> {
-    return;
+  logout(_serverName: string): Promise<void> {
+    return Promise.resolve();
   }
 
   /**
    * 获取所有已认证的服务器列表（当前未实现）
    */
-  async getAuthenticatedServers(): Promise<string[]> {
-    return [];
+  getAuthenticatedServers(): Promise<string[]> {
+    return Promise.resolve([]);
   }
 }
 

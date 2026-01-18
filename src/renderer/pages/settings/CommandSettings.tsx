@@ -161,9 +161,15 @@ const CommandSettings: React.FC = () => {
             </Button>
           </div>
           <div className='text-12px text-t-secondary space-y-2px'>
-            <div>Cursor: {externalStats.cursor.count} | {externalStats.cursor.dir || '-'}</div>
-            <div>Claude: {externalStats.claude.count} | {externalStats.claude.dir || '-'}</div>
-            <div>Codex: {externalStats.codex.count} | {externalStats.codex.dir || '-'}</div>
+            <div>
+              Cursor: {externalStats.cursor.count} | {externalStats.cursor.dir || '-'}
+            </div>
+            <div>
+              Claude: {externalStats.claude.count} | {externalStats.claude.dir || '-'}
+            </div>
+            <div>
+              Codex: {externalStats.codex.count} | {externalStats.codex.dir || '-'}
+            </div>
           </div>
           <Divider className='my-12px' />
           {externalCommands.length === 0 ? (
@@ -186,15 +192,7 @@ const CommandSettings: React.FC = () => {
         </div>
       </div>
 
-      <Modal
-        title={editingCommand ? 'Edit Command' : 'Add Command'}
-        visible={isModalOpen}
-        onCancel={() => setIsModalOpen(false)}
-        onOk={() => void handleSave()}
-        okText='Save'
-        cancelText='Cancel'
-        style={{ width: 720 }}
-      >
+      <Modal title={editingCommand ? 'Edit Command' : 'Add Command'} visible={isModalOpen} onCancel={() => setIsModalOpen(false)} onOk={() => void handleSave()} okText='Save' cancelText='Cancel' style={{ width: 720 }}>
         <div className='space-y-12px'>
           <div>
             <div className='text-12px text-t-secondary mb-6px'>Command name</div>

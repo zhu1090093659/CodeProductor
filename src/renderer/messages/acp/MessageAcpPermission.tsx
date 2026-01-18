@@ -118,18 +118,17 @@ const MessageAcpPermission: React.FC<MessageAcpPermissionProps> = React.memo(({ 
 
     autoConfirmOnceRef.current = true;
     setSelected(choice);
-    void confirmWithKey(choice)
-      .then((ok) => {
-        if (!ok) {
-          autoConfirmOnceRef.current = false;
-          return;
-        }
-        try {
-          localStorage.setItem(respondedKey, 'true');
-        } catch {
-          // ignore storage errors
-        }
-      });
+    void confirmWithKey(choice).then((ok) => {
+      if (!ok) {
+        autoConfirmOnceRef.current = false;
+        return;
+      }
+      try {
+        localStorage.setItem(respondedKey, 'true');
+      } catch {
+        // ignore storage errors
+      }
+    });
   }, [confirmWithKey, conversationCtx?.backend, conversationCtx?.type, conversationCtx?.workspace, hasResponded, message.conversation_id, message.id, options, toolCall]);
 
   if (!toolCall) {

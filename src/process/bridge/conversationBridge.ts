@@ -208,10 +208,7 @@ export function initConversationBridge(): void {
     try {
       const db = getDatabase();
       const existing = db.getConversation(id);
-      const prevModel =
-        existing.success && existing.data && 'model' in existing.data
-          ? (existing.data as { model?: unknown }).model
-          : undefined;
+      const prevModel = existing.success && existing.data && 'model' in existing.data ? (existing.data as { model?: unknown }).model : undefined;
       const nextModel = 'model' in updates ? (updates as { model?: unknown }).model : undefined;
       const modelChanged = !!nextModel && JSON.stringify(prevModel) !== JSON.stringify(nextModel);
       // model change detection for task rebuild
@@ -309,12 +306,12 @@ export function initConversationBridge(): void {
     return abort;
   })();
 
-  ipcBridge.conversation.abortWorkspaceRead.provider(async () => {
+  ipcBridge.conversation.abortWorkspaceRead.provider(() => {
     try {
       buildLastAbortController();
-      return { success: true };
+      return Promise.resolve({ success: true });
     } catch (error) {
-      return { success: false, msg: error instanceof Error ? error.message : String(error) };
+      return Promise.resolve({ success: false, msg: error instanceof Error ? error.message : String(error) });
     }
   });
 

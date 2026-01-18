@@ -696,24 +696,8 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({ conversation_id, workspace, e
         <DirectorySelectionModal visible={showDirectorySelector} onConfirm={handleSelectDirectoryFromModal} onCancel={() => setShowDirectorySelector(false)} />
 
         {/* URL Preview Modal */}
-        <Modal
-          visible={showUrlPreviewModal}
-          title='Open URL'
-          onCancel={() => setShowUrlPreviewModal(false)}
-          onOk={openUrlPreviewFromInput}
-          okText={t('common.confirm', { defaultValue: 'Confirm' })}
-          cancelText={t('common.cancel', { defaultValue: 'Cancel' })}
-          style={{ borderRadius: '12px' }}
-          alignCenter
-          getPopupContainer={() => document.body}
-        >
-          <Input
-            autoFocus
-            value={urlPreviewInput}
-            onChange={(v) => setUrlPreviewInput(v)}
-            placeholder='https://localhost:7878'
-            onPressEnter={openUrlPreviewFromInput}
-          />
+        <Modal visible={showUrlPreviewModal} title='Open URL' onCancel={() => setShowUrlPreviewModal(false)} onOk={openUrlPreviewFromInput} okText={t('common.confirm', { defaultValue: 'Confirm' })} cancelText={t('common.cancel', { defaultValue: 'Cancel' })} style={{ borderRadius: '12px' }} alignCenter getPopupContainer={() => document.body}>
+          <Input autoFocus value={urlPreviewInput} onChange={(v) => setUrlPreviewInput(v)} placeholder='https://localhost:7878' onPressEnter={openUrlPreviewFromInput} />
         </Modal>
 
         {/* Search Input - 最上方 */}
@@ -986,7 +970,7 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({ conversation_id, workspace, e
                     type='button'
                     className='px-10px h-22px rounded-6px text-12px border border-border-1 bg-bg-1 text-t-secondary hover:bg-bg-3 transition-colors flex-shrink-0'
                     onClick={() => {
-                      const current = activeTab?.contentType === 'url' ? (activeTab.content || '') : '';
+                      const current = activeTab?.contentType === 'url' ? activeTab.content || '' : '';
                       setUrlPreviewInput(current);
                       setShowUrlPreviewModal(true);
                     }}

@@ -54,9 +54,7 @@ export async function applyCliProvider(payload: CliProviderApplyPayload): Promis
   }
 
   if (payload.target === 'codex') {
-    const shouldPatchAuth =
-      (payload.authPatch && Object.keys(payload.authPatch).length > 0) ||
-      (Array.isArray(payload.clearAuthKeys) && payload.clearAuthKeys.length > 0);
+    const shouldPatchAuth = (payload.authPatch && Object.keys(payload.authPatch).length > 0) || (Array.isArray(payload.clearAuthKeys) && payload.clearAuthKeys.length > 0);
 
     if (shouldPatchAuth) {
       const currentAuth = await readJson(paths.codexAuth);

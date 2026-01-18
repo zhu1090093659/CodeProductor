@@ -171,7 +171,7 @@ export function initFsBridge(): void {
     return tree ? [tree] : [];
   });
 
-  ipcBridge.fs.listMarkdownFiles.provider(async ({ dir, maxDepth }) => {
+  ipcBridge.fs.listMarkdownFiles.provider(({ dir, maxDepth }) => {
     return listMarkdownFiles(dir, maxDepth);
   });
 

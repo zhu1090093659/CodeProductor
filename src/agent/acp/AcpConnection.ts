@@ -82,13 +82,6 @@ export class AcpConnection {
   public onEndTurn: () => void = () => {}; // Handler for end_turn messages
   public onFileOperation: (operation: { method: string; path: string; content?: string; sessionId: string }) => void = () => {};
 
-  // 通用的后端连接方法
-  private async connectGenericBackend(backend: 'qwen' | 'iflow' | 'goose' | 'kimi' | 'opencode' | 'custom', cliPath: string, workingDir: string, acpArgs?: string[], customEnv?: Record<string, string>): Promise<void> {
-    const config = createGenericSpawnConfig(cliPath, workingDir, acpArgs, customEnv);
-    this.child = spawn(config.command, config.args, config.options);
-    await this.setupChildProcessHandlers(backend);
-  }
-
   async connect(backend: AcpBackend, cliPath?: string, workingDir: string = process.cwd(), acpArgs?: string[], customEnv?: Record<string, string>): Promise<void> {
     if (this.child) {
       this.disconnect();
@@ -104,23 +97,11 @@ export class AcpConnection {
         await this.connectClaude(workingDir);
         break;
 
-      case 'qwen':
-      case 'iflow':
-      case 'goose':
-      case 'kimi':
-      case 'opencode':
-        if (!cliPath) {
-          throw new Error(`CLI path is required for ${backend} backend`);
-        }
-        await this.connectGenericBackend(backend, cliPath, workingDir, acpArgs);
-        break;
+      case 'codex':
+        throw new Error('Codex does not use ACP connection');
 
       case 'custom':
-        if (!cliPath) {
-          throw new Error('Custom agent CLI path/command is required');
-        }
-        await this.connectGenericBackend('custom', cliPath, workingDir, acpArgs, customEnv);
-        break;
+        throw new Error('Preset assistants do not use ACP connection');
 
       default:
         throw new Error(`Unsupported backend: ${backend}`);

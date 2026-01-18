@@ -20,16 +20,12 @@
  */
 export type PresetAgentType = 'claude' | 'codex';
 
-// 全部后端类型定义 - 包括暂时不支持的 / All backend types - including temporarily unsupported ones
+// 全部后端类型定义（已收敛为 Claude Code + Codex；保留 custom 用于“预设助手”而非自定义 CLI）
+// All backend types (reduced to Claude Code + Codex; keep 'custom' for preset assistants only, NOT arbitrary CLIs)
 export type AcpBackendAll =
-  | 'claude' // Claude ACP
-  | 'qwen' // Qwen Code ACP
-  | 'iflow' // iFlow CLI ACP
-  | 'codex' // OpenAI Codex MCP
-  | 'goose' // Block's Goose CLI
-  | 'kimi' // Kimi CLI (Moonshot)
-  | 'opencode' // OpenCode CLI
-  | 'custom'; // User-configured custom ACP agent
+  | 'claude' // Claude Code ACP
+  | 'codex' // OpenAI Codex
+  | 'custom'; // Preset assistant (no CLI)
 
 /**
  * 潜在的 ACP CLI 工具列表
@@ -249,65 +245,22 @@ export const ACP_BACKENDS_ALL: Record<AcpBackendAll, AcpBackendConfig> = {
     enabled: true,
     supportsStreaming: false,
   },
-  qwen: {
-    id: 'qwen',
-    name: 'Qwen Code',
-    cliCommand: 'qwen',
-    defaultCliPath: 'npx @qwen-code/qwen-code',
-    authRequired: true,
-    enabled: true, // ✅ 已验证支持：Qwen CLI v0.0.10+ 支持 --experimental-acp
-    supportsStreaming: true,
-  },
-  iflow: {
-    id: 'iflow',
-    name: 'iFlow CLI',
-    cliCommand: 'iflow',
-    authRequired: true,
-    enabled: true,
-    supportsStreaming: false,
-  },
   codex: {
     id: 'codex',
     name: 'Codex ',
     cliCommand: 'codex',
     authRequired: false,
-    enabled: true, // ✅ 已验证支持：Codex CLI v0.4.0+ 支持 acp 模式
+    enabled: true,
     supportsStreaming: false,
-  },
-  goose: {
-    id: 'goose',
-    name: 'Goose',
-    cliCommand: 'goose',
-    authRequired: false,
-    enabled: true, // ✅ Block's Goose CLI，使用 `goose acp` 启动
-    supportsStreaming: false,
-    acpArgs: ['acp'], // goose 使用子命令而非 flag
-  },
-  kimi: {
-    id: 'kimi',
-    name: 'Kimi CLI',
-    cliCommand: 'kimi',
-    authRequired: false,
-    enabled: true, // ✅ Kimi CLI (Moonshot)，使用 `kimi --acp` 启动
-    supportsStreaming: false,
-    acpArgs: ['--acp'], // kimi 使用 --acp flag
-  },
-  opencode: {
-    id: 'opencode',
-    name: 'OpenCode',
-    cliCommand: 'opencode',
-    authRequired: false,
-    enabled: true, // ✅ OpenCode CLI，使用 `opencode acp` 启动
-    supportsStreaming: false,
-    acpArgs: ['acp'], // opencode 使用 acp 子命令
   },
   custom: {
     id: 'custom',
-    name: 'Custom Agent',
-    cliCommand: undefined, // User-configured via settings
+    name: 'Preset Assistant',
+    cliCommand: undefined, // No CLI (preset assistant only)
     authRequired: false,
     enabled: true,
     supportsStreaming: false,
+    // NOTE: Do not set defaultCliPath here. 'custom' is reserved for presets.
   },
 };
 

@@ -110,7 +110,7 @@ export const handleSlashCommand = async (
       if (!args.length) {
         return { handled: true, error: 'Missing agent-browser arguments. Example: /browser open https://example.com' };
       }
-      const config = await ConfigStorage.get('tools.agentBrowser').catch(() => undefined);
+      const config = await ConfigStorage.get('tools.agentBrowser').catch((): undefined => undefined);
       const runResult = await ipcBridge.agentBrowser.run.invoke({
         args,
         cwd: workspace,

@@ -7,8 +7,8 @@
   "useTabs": false,
   "bracketSpacing": true,
   "arrowParens": "always",
-  "endOfLine": "lf",
+  "endOfLine": "auto",
   "quoteProps": "as-needed",
   "jsxSingleQuote": true,
   "bracketSameLine": false
-} 
+}
