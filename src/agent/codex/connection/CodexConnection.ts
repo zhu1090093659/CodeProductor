@@ -9,6 +9,7 @@ import { spawn, execSync } from 'child_process';
 import type { CodexEventParams } from '@/common/codex/types';
 import { globalErrorService, fromNetworkError } from '../core/ErrorService';
 import { JSONRPC_VERSION } from '@/types/acpTypes';
+import { killProcessTree } from '@/common/processUtils';
 
 type JsonRpcId = number | string;
 
@@ -235,7 +236,9 @@ export class CodexConnection {
 
   stop(): Promise<void> {
     if (this.child) {
-      this.child.kill();
+      // Use killProcessTree to kill entire process tree on Windows
+      // 使用 killProcessTree 在 Windows 上终止整个进程树
+      killProcessTree(this.child);
       this.child = null;
     }
     // Reject all pending

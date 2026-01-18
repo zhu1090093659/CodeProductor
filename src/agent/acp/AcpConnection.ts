@@ -10,6 +10,7 @@ import type { ChildProcess, SpawnOptions } from 'child_process';
 import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { killProcessTree } from '@/common/processUtils';
 
 interface PendingRequest<T = unknown> {
   resolve: (value: T) => void;
@@ -584,7 +585,9 @@ export class AcpConnection {
 
   disconnect(): void {
     if (this.child) {
-      this.child.kill();
+      // Use killProcessTree to kill entire process tree on Windows
+      // 使用 killProcessTree 在 Windows 上终止整个进程树
+      killProcessTree(this.child);
       this.child = null;
     }
 

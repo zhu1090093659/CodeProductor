@@ -90,6 +90,38 @@ const clear = () => {
   taskList.length = 0;
 };
 
+/**
+ * Gracefully clear all tasks with proper cleanup
+ * 优雅地清理所有任务，确保 CLI 进程释放目录锁
+ * This is called on application quit to avoid EBUSY errors on Windows
+ */
+const clearAsync = async (timeoutMs = 3000) => {
+  if (taskList.length === 0) return;
+
+  // Step 1: Send stop to all tasks to gracefully disconnect CLI child processes
+  // 发送停止消息以优雅地断开 CLI 子进程连接
+  const stopPromises = taskList.map(async (item) => {
+    try {
+      const task = item.task as { stop?: () => Promise<void> };
+      await Promise.race([task.stop?.(), new Promise((resolve) => setTimeout(resolve, timeoutMs))]);
+    } catch (error) {
+      console.warn('[WorkerManage] Failed to stop task gracefully:', error);
+    }
+  });
+
+  await Promise.all(stopPromises);
+
+  // Step 2: Wait for CLI processes to fully exit
+  // Windows needs extra time to release file handles after process termination
+  // Windows 需要额外时间释放文件句柄
+  if (process.platform === 'win32') {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
+  // Step 3: Kill all worker processes
+  clear();
+};
+
 const killByWorkspace = async (workspace: string) => {
   if (!workspace) return 0;
   const normalizedTarget = normalizeWorkspacePath(workspace);
@@ -163,6 +195,7 @@ const WorkerManage = {
   kill,
   killByWorkspace,
   clear,
+  clearAsync,
 };
 
 export default WorkerManage;

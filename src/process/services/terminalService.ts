@@ -101,6 +101,18 @@ export class TerminalService {
     return disposed;
   }
 
+  /**
+   * Dispose all terminals - called on application exit
+   * 销毁所有终端 - 应用退出时调用
+   */
+  disposeAll(): number {
+    const count = this.terminals.size;
+    for (const terminalId of Array.from(this.terminals.keys())) {
+      this.dispose(terminalId);
+    }
+    return count;
+  }
+
   private resolveDefaultShell(): string {
     if (process.platform === 'win32') {
       return process.env.COMSPEC || 'powershell.exe';

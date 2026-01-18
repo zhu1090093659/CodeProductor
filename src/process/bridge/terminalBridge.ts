@@ -22,6 +22,10 @@ const terminalService = new TerminalService({
   },
 });
 
+// Export terminalService for cleanup on app exit
+// 导出 terminalService 以便在应用退出时清理
+export { terminalService };
+
 const execFileAsync = promisify(execFile);
 const DEFAULT_AGENT_BROWSER_TIMEOUT_MS = 60000;
 const AGENT_BROWSER_MAX_BUFFER = 10 * 1024 * 1024;

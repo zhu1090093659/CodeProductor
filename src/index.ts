@@ -14,6 +14,7 @@ import { ipcBridge } from './common';
 import { initializeProcess } from './process';
 import { initializeAcpDetector } from './process/bridge';
 import { registerWindowMaximizeListeners } from './process/bridge/windowControlsBridge';
+import { terminalService } from './process/bridge/terminalBridge';
 import WorkerManage from './process/WorkerManage';
 import { startWebServer } from './webserver';
 import { SERVER_CONFIG } from './webserver/config/constants';
@@ -295,9 +296,19 @@ app.on('activate', () => {
   }
 });
 
-app.on('before-quit', () => {
-  // 在应用退出前清理工作进程
-  WorkerManage.clear();
+app.on('before-quit', async (event) => {
+  // 在应用退出前优雅地清理工作进程，避免 EBUSY 错误
+  // Gracefully clean up work processes before app exits to avoid EBUSY errors
+  event.preventDefault();
+  try {
+    // 清理所有 CLI 工作进程 / Clean up all CLI worker processes
+    await WorkerManage.clearAsync();
+    // 清理所有终端进程 / Dispose all terminal processes
+    terminalService.disposeAll();
+  } catch (error) {
+    console.error('[App] Failed to cleanup on quit:', error);
+  }
+  app.exit(0);
 });
 
 // In this file you can include the rest of your app's specific main process
