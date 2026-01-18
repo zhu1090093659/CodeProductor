@@ -65,6 +65,15 @@ export const CODEX_PROVIDER_PRESETS: CodexProviderPreset[] = [
     iconColor: '#00A67E',
   },
   {
+    name: 'Custom',
+    websiteUrl: 'https://developers.openai.com',
+    category: 'custom',
+    auth: generateThirdPartyAuth(''),
+    config: '',
+    icon: 'openai',
+    iconColor: '#00A67E',
+  },
+  {
     name: 'Azure OpenAI',
     websiteUrl: 'https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/codex',
     category: 'third_party',

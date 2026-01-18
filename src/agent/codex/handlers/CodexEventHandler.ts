@@ -38,6 +38,13 @@ export class CodexEventHandler {
       return;
     }
 
+    // Generic error from Codex CLI (e.g. usage_limit_exceeded). Treat as terminal for current task.
+    if (type === 'error') {
+      this.messageProcessor.processGenericError({ type: 'error', data: { message: msg.message } });
+      this.messageProcessor.processTaskComplete();
+      return;
+    }
+
     // agent_message 是完整消息，用于最终持久化（但不发送到前端，避免重复显示）
     if (type === 'agent_message') {
       this.messageProcessor.processFinalMessage(msg);

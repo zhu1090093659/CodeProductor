@@ -57,15 +57,23 @@ const buildClaudeEnv = (preset: ProviderPreset, config: CliProviderConfig) => {
   if (config.model) {
     env['ANTHROPIC_MODEL'] = config.model;
   }
+  if (config.maxThinkingTokens) {
+    const parsed = Number.parseInt(config.maxThinkingTokens, 10);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      env['MAX_THINKING_TOKENS'] = parsed;
+    }
+  }
   return env;
 };
 
 const patchCodexConfig = (baseConfig: string, baseUrl?: string, model?: string) => {
   let next = baseConfig || '';
   if (!next) {
-    if (baseUrl) {
-      next = generateThirdPartyConfig('custom', baseUrl, model || 'gpt-5.1-codex');
-    }
+    const resolvedModel = model || '';
+    if (!resolvedModel) return next;
+    // For Official mode, allow writing only the model by generating a minimal OpenAI provider block.
+    const resolvedBaseUrl = baseUrl || 'https://api.openai.com/v1';
+    next = generateThirdPartyConfig('openai', resolvedBaseUrl, resolvedModel);
     return next;
   }
   if (baseUrl) {
@@ -113,10 +121,19 @@ const CliProviderSettings: React.FC<{ embedded?: boolean }> = ({ embedded = fals
       if (target === 'claude') {
         const preset = CLAUDE_PROVIDER_PRESETS.find((p) => p.name === config.presetName);
         if (!preset) return;
-        const env = buildClaudeEnv(preset, config);
         const shouldUseOfficial = isOfficialCliPreset(preset) && !config.apiKey;
-        const clearEnvKeys = shouldUseOfficial ? ['ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_API_KEY', 'ANTHROPIC_BASE_URL', 'ANTHROPIC_MODEL', 'ANTHROPIC_DEFAULT_HAIKU_MODEL', 'ANTHROPIC_DEFAULT_SONNET_MODEL', 'ANTHROPIC_DEFAULT_OPUS_MODEL'] : undefined;
-        const result = await applyProvider({ target, env, clearEnvKeys });
+        const selectedModel = config.model || config.enabledModels?.[0];
+        const env = buildClaudeEnv(preset, { ...config, model: selectedModel });
+        const clearEnvKeys: string[] = [];
+        if (shouldUseOfficial) {
+          clearEnvKeys.push('ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_API_KEY', 'ANTHROPIC_BASE_URL');
+        }
+        // If user clears MAX_THINKING_TOKENS, remove it from env to avoid stale cap.
+        if (!config.maxThinkingTokens) {
+          clearEnvKeys.push('MAX_THINKING_TOKENS');
+        }
+        const settingsPatch = shouldUseOfficial && typeof config.alwaysThinkingEnabled === 'boolean' ? { alwaysThinkingEnabled: config.alwaysThinkingEnabled } : undefined;
+        const result = await applyProvider({ target, env, clearEnvKeys: clearEnvKeys.length ? clearEnvKeys : undefined, settingsPatch });
         if (result.success) {
           message.success('Claude Code settings updated');
         } else {
@@ -128,15 +145,16 @@ const CliProviderSettings: React.FC<{ embedded?: boolean }> = ({ embedded = fals
         const preset = CODEX_PROVIDER_PRESETS.find((p) => p.name === config.presetName);
         if (!preset) return;
         const shouldUseOfficial = isOfficialCliPreset(preset) && !config.apiKey && !config.baseUrl;
+        const selectedModel = config.model || config.enabledModels?.[0];
         const authPatch = config.apiKey ? ({ OPENAI_API_KEY: config.apiKey } as Record<string, unknown>) : undefined;
         const clearAuthKeys = shouldUseOfficial ? (['OPENAI_API_KEY'] as string[]) : undefined;
-        const configToml = patchCodexConfig(preset.config, config.baseUrl, config.model);
+        const configToml = patchCodexConfig(preset.config, config.baseUrl, selectedModel);
         const result = await applyProvider({
           target,
           authPatch,
           clearAuthKeys,
           configToml: configToml && configToml.trim() ? configToml : undefined,
-          clearConfigToml: shouldUseOfficial,
+          clearConfigToml: shouldUseOfficial && !selectedModel,
         });
         if (result.success) {
           message.success('Codex settings updated');
@@ -155,15 +173,14 @@ const CliProviderSettings: React.FC<{ embedded?: boolean }> = ({ embedded = fals
     const preset = presets.find((p) => p.name === config.presetName);
     const isOfficial = isOfficialCliPreset(preset);
     const endpointCandidates = preset?.endpointCandidates || [];
-    const modelListState = useModeModeList(target === 'codex' ? 'openai' : '', config.baseUrl, config.apiKey);
+    const modelListState = useModeModeList(target === 'codex' ? 'openai' : 'anthropic', config.baseUrl, config.apiKey, undefined, isOfficial);
     const modelOptions = useMemo(() => modelListState.data?.models || [], [modelListState.data?.models]);
     const modelError = typeof modelListState.error === 'string' ? modelListState.error : modelListState.error?.message;
     const availableModels = useMemo(() => {
-      if (target === 'codex') {
-        return modelOptions.map((option) => option.value);
-      }
+      const fetched = modelOptions.map((option) => option.value);
+      if (fetched.length > 0) return fetched;
       return config.model ? [config.model] : [];
-    }, [modelOptions, config.model, target]);
+    }, [modelOptions, config.model]);
     const enabledModels = config.enabledModels || [];
     const effectiveEnabledModels = enabledModels.length > 0 ? enabledModels : availableModels.slice(0, 1);
 
@@ -204,12 +221,10 @@ const CliProviderSettings: React.FC<{ embedded?: boolean }> = ({ embedded = fals
     }, [availableModels, config, configs, enabledModels, saveConfigs, target]);
 
     const handleFetchModels = async () => {
-      if (target === 'codex') {
-        await modelListState.mutate();
-        return;
-      }
-      message.info(t('settings.fetchModelsHint'));
+      await modelListState.mutate();
     };
+
+    const showClaudeOfficialThinking = target === 'claude' && isOfficial;
 
     const renderTemplateValues = (templatePreset: ProviderPreset | undefined) => {
       if (!templatePreset?.templateValues) return null;
@@ -248,8 +263,8 @@ const CliProviderSettings: React.FC<{ embedded?: boolean }> = ({ embedded = fals
               placeholder='Select provider'
               onChange={(value) => {
                 const nextPreset = presets.find((p) => p.name === value);
-                const baseUrl = nextPreset?.settingsConfig?.env?.['ANTHROPIC_BASE_URL'] || nextPreset?.endpointCandidates?.[0] || '';
-                const model = (nextPreset as { model?: string })?.model || nextPreset?.settingsConfig?.env?.['ANTHROPIC_MODEL']?.toString() || '';
+                const baseUrl = target === 'claude' ? nextPreset?.settingsConfig?.env?.['ANTHROPIC_BASE_URL'] || nextPreset?.endpointCandidates?.[0] || '' : nextPreset?.endpointCandidates?.[0] || '';
+                const model = target === 'claude' ? (nextPreset as { model?: string })?.model || nextPreset?.settingsConfig?.env?.['ANTHROPIC_MODEL']?.toString() || '' : '';
                 const nextConfigs = {
                   ...configs,
                   [target]: {
@@ -300,6 +315,19 @@ const CliProviderSettings: React.FC<{ embedded?: boolean }> = ({ embedded = fals
             </div>
           )}
 
+          {showClaudeOfficialThinking && (
+            <div className='space-y-12px'>
+              <Form.Item label='Thinking mode (default)'>
+                <Switch checked={typeof config.alwaysThinkingEnabled === 'boolean' ? config.alwaysThinkingEnabled : true} onChange={(checked) => void saveConfigs({ ...configs, [target]: { ...configs[target], alwaysThinkingEnabled: checked } })} />
+                <div className='text-12px text-t-secondary mt-6px'>Saved as alwaysThinkingEnabled in ~/.claude/settings.json</div>
+              </Form.Item>
+              <Form.Item label='MAX_THINKING_TOKENS (optional)'>
+                <Input placeholder='e.g. 10000' value={config.maxThinkingTokens || ''} onChange={(value) => void saveConfigs({ ...configs, [target]: { ...configs[target], maxThinkingTokens: value } })} />
+                <div className='text-12px text-t-secondary mt-6px'>Sets env MAX_THINKING_TOKENS to cap thinking budget</div>
+              </Form.Item>
+            </div>
+          )}
+
           <Form.Item label='API Key'>
             <Input.Password placeholder={isOfficial ? 'Optional (leave empty to use browser login)' : 'Enter API key'} value={config.apiKey || ''} onChange={(value) => void saveConfigs({ ...configs, [target]: { ...configs[target], apiKey: value } })} />
           </Form.Item>
@@ -321,30 +349,28 @@ const CliProviderSettings: React.FC<{ embedded?: boolean }> = ({ embedded = fals
               </Form.Item>
             ))}
 
-          {!isOfficial && (
-            <div className='space-y-10px'>
-              <div className='flex items-center justify-between gap-12px'>
-                <div className='text-12px text-t-secondary'>{t('settings.enabledModels')}</div>
-                <Button size='mini' type='secondary' shape='round' className='px-10px' icon={<Download theme='outline' size={14} />} onClick={() => void handleFetchModels()}>
-                  {t('settings.fetchModels')}
-                </Button>
-              </div>
-              {availableModels.length > 0 && (
-                <div className='space-y-8px overflow-y-auto pr-2' style={{ maxHeight: 280 }}>
-                  {availableModels.map((modelName) => {
-                    const isEnabled = effectiveEnabledModels.includes(modelName);
-                    return (
-                      <div key={modelName} className='flex items-center justify-between gap-12px bg-fill-2 rd-8px px-12px py-8px'>
-                        <span className='text-14px text-t-primary break-all'>{modelName}</span>
-                        <Switch checked={isEnabled} onChange={(checked) => toggleModel(modelName, checked)} />
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              {modelError && <div className='text-12px text-[rgb(var(--danger-6))]'>{modelError}</div>}
+          <div className='space-y-10px'>
+            <div className='flex items-center justify-between gap-12px'>
+              <div className='text-12px text-t-secondary'>{t('settings.enabledModels')}</div>
+              <Button size='mini' type='secondary' shape='round' className='px-10px' icon={<Download theme='outline' size={14} />} onClick={() => void handleFetchModels()}>
+                {t('settings.fetchModels')}
+              </Button>
             </div>
-          )}
+            {availableModels.length > 0 && (
+              <div className='space-y-8px overflow-y-auto pr-2' style={{ maxHeight: 280 }}>
+                {availableModels.map((modelName) => {
+                  const isEnabled = effectiveEnabledModels.includes(modelName);
+                  return (
+                    <div key={modelName} className='flex items-center justify-between gap-12px bg-fill-2 rd-8px px-12px py-8px'>
+                      <span className='text-14px text-t-primary break-all'>{modelName}</span>
+                      <Switch checked={isEnabled} onChange={(checked) => toggleModel(modelName, checked)} />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {modelError && <div className='text-12px text-[rgb(var(--danger-6))]'>{modelError}</div>}
+          </div>
 
           {renderTemplateValues(preset)}
         </Form>

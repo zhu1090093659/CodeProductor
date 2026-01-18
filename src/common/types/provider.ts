@@ -11,6 +11,11 @@ export type CliProviderApplyPayload =
       target: 'claude';
       env: Record<string, string | number>;
       /**
+       * Patch fields to merge into existing ~/.claude/settings.json (root level).
+       * Used for non-env settings like alwaysThinkingEnabled.
+       */
+      settingsPatch?: Record<string, unknown>;
+      /**
        * Keys to remove from existing ~/.claude/settings.json env before merging.
        * This is used to switch back to official browser-login mode safely.
        */

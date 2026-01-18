@@ -56,6 +56,16 @@ export const CLAUDE_PROVIDER_PRESETS: ClaudeProviderPreset[] = [
     iconColor: '#D4915D',
   },
   {
+    name: 'Custom',
+    websiteUrl: 'https://docs.anthropic.com',
+    settingsConfig: {
+      env: {},
+    },
+    category: 'custom',
+    icon: 'anthropic',
+    iconColor: '#D4915D',
+  },
+  {
     name: 'DeepSeek',
     websiteUrl: 'https://platform.deepseek.com',
     settingsConfig: {

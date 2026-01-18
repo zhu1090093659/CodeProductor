@@ -87,6 +87,10 @@ export interface CliProviderConfig {
   model?: string;
   enabledModels?: string[];
   templateValues?: Record<string, string>;
+  /** Claude Code: global default thinking mode saved in ~/.claude/settings.json */
+  alwaysThinkingEnabled?: boolean;
+  /** Claude Code: env MAX_THINKING_TOKENS (string to preserve user input) */
+  maxThinkingTokens?: string;
 }
 
 export type CliProvidersStorage = Record<CliProviderTarget, CliProviderConfig | undefined>;

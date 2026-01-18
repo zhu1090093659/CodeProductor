@@ -49,7 +49,9 @@ export async function applyCliProvider(payload: CliProviderApplyPayload): Promis
       }
     }
     const env = { ...existingEnv, ...payload.env };
-    await writeJson(paths.claudeSettings, { ...current, env });
+    const settingsPatch = payload.settingsPatch && typeof payload.settingsPatch === 'object' ? payload.settingsPatch : {};
+    // Merge root-level settings patch but keep env as the final merged env.
+    await writeJson(paths.claudeSettings, { ...current, ...settingsPatch, env });
     return;
   }
 

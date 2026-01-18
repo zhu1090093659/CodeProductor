@@ -11,6 +11,9 @@ import { isGoogleApisHost } from '@/common/utils/urlValidation';
 import OpenAI from 'openai';
 import { ipcBridge } from '../../common';
 import { ProcessConfig } from '../initStorage';
+import fs from 'fs/promises';
+import os from 'os';
+import path from 'path';
 
 /**
  * OpenAI 兼容 API 的常见路径格式
@@ -30,6 +33,113 @@ const API_PATH_PATTERNS = [
   '/api/paas/v4', // 智谱 / Zhipu
 ];
 
+const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1';
+
+const getCodexAuthPath = () => {
+  const home = os.homedir();
+  return path.join(home, '.codex', 'auth.json');
+};
+
+const readJsonSafe = async (filePath: string): Promise<Record<string, unknown>> => {
+  try {
+    const content = await fs.readFile(filePath, 'utf-8');
+    return JSON.parse(content) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+};
+
+const getDefaultOpenAIModels = (): string[] => {
+  // NOTE: Fallback list for Official mode when we cannot fetch from /v1/models.
+  // Keep it small and conservative to avoid misleading users.
+  return ['gpt-5.2', 'gpt-5.2-codex', 'gpt-5.1', 'gpt-5.1-codex'];
+};
+
+const isPlainObject = (v: unknown): v is Record<string, unknown> => {
+  return Boolean(v) && typeof v === 'object' && !Array.isArray(v);
+};
+
+const extractTokenCandidatesDeep = (authJson: Record<string, unknown>, maxDepth: number = 6): string[] => {
+  const results: Array<{ key: string; value: string }> = [];
+
+  const visit = (node: unknown, pathKey: string, depth: number) => {
+    if (depth > maxDepth) return;
+    if (typeof node === 'string') {
+      const trimmed = node.trim();
+      if (trimmed) {
+        results.push({ key: pathKey, value: trimmed });
+      }
+      return;
+    }
+    if (Array.isArray(node)) {
+      node.forEach((item, idx) => visit(item, `${pathKey}[${idx}]`, depth + 1));
+      return;
+    }
+    if (isPlainObject(node)) {
+      for (const [k, v] of Object.entries(node)) {
+        visit(v, pathKey ? `${pathKey}.${k}` : k, depth + 1);
+      }
+    }
+  };
+
+  visit(authJson, '', 0);
+
+  // Prefer keys that look like credentials.
+  const priorityKeyPatterns = [/OPENAI_API_KEY/i, /api[_-]?key/i, /access[_-]?token/i, /refresh[_-]?token/i, /id[_-]?token/i, /token/i];
+  const score = (item: { key: string; value: string }) => {
+    const keyScore = priorityKeyPatterns.findIndex((re) => re.test(item.key));
+    const keyWeight = keyScore === -1 ? 0 : 100 - keyScore * 10;
+    const valueWeight = item.value.startsWith('sk-') ? 50 : item.value.startsWith('eyJ') ? 30 : item.value.length >= 30 ? 10 : 0;
+    return keyWeight + valueWeight;
+  };
+
+  return results
+    .sort((a, b) => score(b) - score(a))
+    .map((x) => x.value)
+    .filter((v, idx, arr) => arr.indexOf(v) === idx);
+};
+
+const getCodexAuthPreferredToken = (authJson: Record<string, unknown>): string | undefined => {
+  // Prefer the Codex OAuth access token if present (common shape: { tokens: { access_token: "..." } })
+  const tokens = authJson['tokens'];
+  if (isPlainObject(tokens)) {
+    const access = tokens['access_token'] ?? tokens['accessToken'];
+    if (typeof access === 'string' && access.trim()) return access.trim();
+  }
+
+  return extractOpenAIBearerToken(authJson);
+};
+
+const extractOpenAIBearerToken = (authJson: Record<string, unknown>): string | undefined => {
+  // Keep a fast path for common fields, and fall back to a deep scan for unknown shapes.
+  const fastCandidates = [authJson['OPENAI_API_KEY'], authJson['api_key'], authJson['access_token'], authJson['accessToken'], authJson['token']];
+  for (const c of fastCandidates) {
+    if (typeof c === 'string' && c.trim()) return c.trim();
+  }
+  return extractTokenCandidatesDeep(authJson)[0];
+};
+
+const getKnownClaudeModels = (): string[] => {
+  // NOTE: Claude Code supports model aliases (recommended) and full model names.
+  // There is no public "models list" endpoint for Anthropic, so we return a curated list.
+  // Keep aliases first to avoid hard-coding outdated versioned names.
+  return [
+    // Model aliases (preferred)
+    'default',
+    'sonnet',
+    'opus',
+    'haiku',
+    'sonnet[1m]',
+    'opusplan',
+
+    // Full model name examples (optional)
+    // Users can also manually type any valid full model name in settings.json / env.
+    'anthropic.claude-sonnet-4-5-20250929-v1:0',
+    'anthropic.claude-opus-4-5-20250929-v1:0',
+    'anthropic.claude-haiku-4-5-20250929-v1:0',
+  ];
+};
+
 export function initModelBridge(): void {
   ipcBridge.mode.fetchModelList.provider(async function fetchModelList({ base_url, api_key, try_fix, platform }): Promise<{ success: boolean; msg?: string; data?: { mode: Array<string>; fix_base_url?: string } }> {
     // 如果是多key（包含逗号或回车），只取第一个key来获取模型列表
@@ -37,6 +147,11 @@ export function initModelBridge(): void {
     let actualApiKey = api_key;
     if (api_key && (api_key.includes(',') || api_key.includes('\n'))) {
       actualApiKey = api_key.split(/[,\n]/)[0].trim();
+    }
+
+    // Claude / Anthropic: no public models endpoint, return curated list (supports official mode)
+    if (platform?.includes('anthropic') || platform?.includes('claude')) {
+      return { success: true, data: { mode: getKnownClaudeModels() } };
     }
 
     // 如果是 Vertex AI 平台，直接返回 Vertex AI 支持的模型列表
@@ -87,6 +202,51 @@ export function initModelBridge(): void {
       }
     }
 
+    // OpenAI official CLI mode: allow empty base_url/api_key and read credential from ~/.codex/auth.json
+    if (platform?.includes('openai')) {
+      const resolvedBaseUrl = base_url && base_url.trim() ? base_url : DEFAULT_OPENAI_BASE_URL;
+      if (!actualApiKey || !actualApiKey.trim()) {
+        const authJson = await readJsonSafe(getCodexAuthPath());
+        const token = getCodexAuthPreferredToken(authJson);
+
+        if (token) {
+          // Use a direct fetch with timeout to avoid hanging the UI when network is blocked.
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000);
+          try {
+            const res = await fetch(`${resolvedBaseUrl}/models`, {
+              method: 'GET',
+              signal: controller.signal,
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+            });
+
+            if (res.ok) {
+              const json = (await res.json()) as { data?: Array<{ id: string }> } | { models?: Array<{ id?: string; name?: string }> };
+              const ids = 'data' in json && Array.isArray(json.data) ? json.data.map((m) => m.id).filter((id): id is string => typeof id === 'string' && id.trim().length > 0) : 'models' in json && Array.isArray(json.models) ? json.models.map((m) => (m.id || m.name || '').toString()).filter((id) => id.trim().length > 0) : [];
+
+              if (ids.length > 0) {
+                return { success: true, data: { mode: ids } };
+              }
+            }
+          } catch {
+            // ignore, fall back
+          } finally {
+            clearTimeout(timeoutId);
+          }
+        }
+
+        // If we cannot fetch (auth shape mismatch / network blocked), fall back so UI remains usable.
+        return { success: true, data: { mode: getDefaultOpenAIModels() } };
+      }
+      base_url = resolvedBaseUrl;
+      if (!actualApiKey || !actualApiKey.trim()) {
+        return { success: true, data: { mode: getDefaultOpenAIModels() } };
+      }
+    }
+
     const openai = new OpenAI({
       baseURL: base_url,
       apiKey: actualApiKey,
@@ -101,6 +261,10 @@ export function initModelBridge(): void {
       }
       return { success: true, data: { mode: res.data.map((v) => v.id) } };
     } catch (e) {
+      // For OpenAI official mode, keep UI usable even when auth is not compatible with /v1/models.
+      if (platform?.includes('openai') && base_url === DEFAULT_OPENAI_BASE_URL) {
+        return { success: true, data: { mode: getDefaultOpenAIModels() } };
+      }
       const errRes = { success: false, msg: e.message || e.toString() };
 
       if (!try_fix) return errRes;

@@ -116,9 +116,10 @@ const useModelList = (selectedAgentKey: string, selectedAgentPresetType?: CliPro
   }, [cliConfig?.presetName, cliTarget]);
   const isOfficialCliProvider = useMemo(() => cliPreset?.category === 'official', [cliPreset?.category]);
 
-  const codexModelListState = useModeModeList(cliTarget === 'codex' ? 'openai' : '', cliConfig?.baseUrl, cliConfig?.apiKey);
+  const codexModelListState = useModeModeList(cliTarget === 'codex' ? 'openai' : '', cliConfig?.baseUrl, cliConfig?.apiKey, undefined, isOfficialCliProvider);
   const codexModels = useMemo(() => (cliTarget === 'codex' ? codexModelListState.data?.models?.map((item) => item.value) || [] : []), [cliTarget, codexModelListState.data?.models]);
-  const claudeModels = useMemo(() => (cliTarget === 'claude' && cliConfig?.model ? [cliConfig.model] : []), [cliTarget, cliConfig?.model]);
+  const claudeModelListState = useModeModeList(cliTarget === 'claude' ? 'anthropic' : '', cliConfig?.baseUrl, cliConfig?.apiKey, undefined, isOfficialCliProvider);
+  const claudeModels = useMemo(() => (cliTarget === 'claude' ? claudeModelListState.data?.models?.map((item) => item.value) || [] : []), [cliTarget, claudeModelListState.data?.models]);
   const enabledModelSet = useMemo(() => new Set(cliConfig?.enabledModels || []), [cliConfig?.enabledModels]);
 
   const providerName = useMemo(() => {
@@ -128,17 +129,6 @@ const useModelList = (selectedAgentKey: string, selectedAgentPresetType?: CliPro
 
   const modelList = useMemo(() => {
     if (!cliTarget) return [];
-    if (isOfficialCliProvider) {
-      const provider: IProvider = {
-        id: `cli:${cliTarget}`,
-        platform: cliTarget,
-        name: providerName,
-        baseUrl: '',
-        apiKey: '',
-        model: ['default'],
-      };
-      return [provider].filter(hasAvailableModels);
-    }
     const models = cliTarget === 'codex' ? codexModels : claudeModels;
     const filteredModels = enabledModelSet.size > 0 ? models.filter((model) => enabledModelSet.has(model)) : [];
     if (!filteredModels.length) return [];
@@ -151,7 +141,7 @@ const useModelList = (selectedAgentKey: string, selectedAgentPresetType?: CliPro
       model: filteredModels,
     };
     return [provider].filter(hasAvailableModels);
-  }, [cliTarget, codexModels, claudeModels, providerName, isOfficialCliProvider, enabledModelSet]);
+  }, [cliTarget, codexModels, claudeModels, providerName, enabledModelSet, cliConfig?.apiKey, cliConfig?.baseUrl]);
 
   const isConfigured = useMemo(() => {
     if (!cliTarget) return false;
@@ -162,14 +152,14 @@ const useModelList = (selectedAgentKey: string, selectedAgentPresetType?: CliPro
     return Boolean(cliConfig?.model);
   }, [cliTarget, cliConfig?.apiKey, cliConfig?.baseUrl, cliConfig?.model, isOfficialCliProvider]);
 
-  const hasEnabledModels = useMemo(() => (isOfficialCliProvider ? true : enabledModelSet.size > 0), [enabledModelSet.size, isOfficialCliProvider]);
+  const hasEnabledModels = useMemo(() => enabledModelSet.size > 0, [enabledModelSet.size]);
 
   return {
     modelList,
     isConfigured,
     hasEnabledModels,
     hasCliTarget: Boolean(cliTarget),
-    isLoading: cliTarget === 'codex' && !isOfficialCliProvider ? codexModelListState.isLoading : false,
+    isLoading: (cliTarget === 'codex' ? codexModelListState.isLoading : cliTarget === 'claude' ? claudeModelListState.isLoading : false) || false,
   };
 };
 
