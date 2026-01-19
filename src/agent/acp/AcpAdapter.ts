@@ -71,8 +71,9 @@ export class AcpAdapter {
       }
 
       case 'agent_thought_chunk': {
-        const message = this.convertThoughtChunk(update);
-        if (message) messages.push(message);
+        // Thought content is handled via ThoughtDisplay component through the 'thought' event.
+        // Do NOT add to message list to avoid duplicate rendering.
+        this.convertThoughtChunk(update); // Still call to update internal thought state
         // Reset message tracking for next agent_message_chunk
         this.resetMessageTracking();
         break;
@@ -143,7 +144,10 @@ export class AcpAdapter {
     if (update.content && update.content.text) {
       const parsed = this.parseJsonContentBlocks(update.content.text);
       if (parsed?.kind === 'thought') {
-        return this.createThoughtMessage(parsed.text);
+        // Thought content from JSON blocks - update internal state but don't add to message list
+        // (ThoughtDisplay component handles thought display via events)
+        this.createThoughtMessage(parsed.text);
+        return null;
       }
       const messageText = parsed?.text ?? update.content.text;
       if (this.shouldSuppressAvailableCommands(messageText)) {

@@ -71,14 +71,28 @@ const MessageList: React.FC<{
     );
   }, [conversationId, shouldShowThought, thought, thoughtRunning]);
 
-  const thoughtInsertBeforeId = useMemo(() => {
+  const thoughtInsertBeforeId = useMemo((): string | null => {
     if (!shouldShowThought) return null;
+
+    // Find the last user message (position === 'right')
+    let lastUserMessageIndex = -1;
     for (let i = list.length - 1; i >= 0; i -= 1) {
+      if (list[i].position === 'right') {
+        lastUserMessageIndex = i;
+        break;
+      }
+    }
+
+    // Find the first AI text message AFTER the last user message
+    // This ensures thinking box appears before the response to the current question
+    for (let i = lastUserMessageIndex + 1; i < list.length; i += 1) {
       const message = list[i];
       if (message.position === 'left' && message.type === 'text') {
         return message.id;
       }
     }
+
+    // No AI text message after the last user message, append at end
     return null;
   }, [list, shouldShowThought]);
 
