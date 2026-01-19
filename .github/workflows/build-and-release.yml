@@ -616,6 +616,8 @@ jobs:
             build-artifacts/**/*.deb
             build-artifacts/**/*.AppImage
             build-artifacts/**/*.zip
+            build-artifacts/**/latest*.yml
+            build-artifacts/**/*.blockmap
           generate_release_notes: true
           draft: true
           prerelease: ${{ needs.create-tag.outputs.is_dev == 'true' || contains(steps.version.outputs.tag_name, 'beta') || contains(steps.version.outputs.tag_name, 'alpha') || contains(steps.version.outputs.tag_name, 'rc') }}

@@ -9,6 +9,7 @@ import Layout from './layout';
 import Router from './router';
 import Sider from './sider';
 import { useAuth } from './context/AuthContext';
+import UpdateNotification from './components/UpdateNotification';
 
 const Main = () => {
   const { ready } = useAuth();
@@ -17,7 +18,12 @@ const Main = () => {
     return null;
   }
 
-  return <Router layout={<Layout sider={<Sider />} />} />;
+  return (
+    <>
+      <Router layout={<Layout sider={<Sider />} />} />
+      <UpdateNotification />
+    </>
+  );
 };
 
 export default Main;

@@ -94,6 +94,7 @@ nsis:
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+  differentialPackage: true  # Enable differential updates for NSIS
 
 mac:
   target:
@@ -156,4 +157,4 @@ publish:
   provider: github
   owner: ${env.GITHUB_REPOSITORY_OWNER:-codeconductor}
   repo: ${env.GITHUB_REPOSITORY_NAME:-CodeConductor}
-  publishAutoUpdate: false
+  publishAutoUpdate: true  # Enable auto-update metadata generation

@@ -267,6 +267,12 @@ const handleAppReady = async (): Promise<void> => {
   if (!isResetPasswordMode) {
     await initializeAcpDetector();
   }
+
+  // 启动时初始化自动更新器 (only in packaged mode, skip in WebUI and resetpass modes)
+  if (!isResetPasswordMode && !isWebUIMode && app.isPackaged) {
+    const { initAutoUpdater } = await import('./process/autoUpdater');
+    initAutoUpdater();
+  }
 };
 
 // Ensure we don't miss the ready event when running in CLI/WebUI mode

@@ -216,6 +216,19 @@ export const windowControls = {
   maximizedChanged: bridge.buildEmitter<{ isMaximized: boolean }>('window-controls:maximized-changed'),
 };
 
+// 自动更新相关接口 / Auto-updater API
+export const updater = {
+  checkForUpdates: bridge.buildProvider<void, void>('updater:check-for-updates'),
+  downloadUpdate: bridge.buildProvider<void, void>('updater:download-update'),
+  quitAndInstall: bridge.buildProvider<void, void>('updater:quit-and-install'),
+  getUpdateStatus: bridge.buildProvider<{ isUpdateAvailable: boolean; downloadedVersion: string | null }, void>('updater:get-status'),
+  onUpdateAvailable: bridge.buildEmitter<{ version: string; releaseDate: string; releaseNotes: string }>('updater:update-available'),
+  onUpdateNotAvailable: bridge.buildEmitter<{ version: string }>('updater:update-not-available'),
+  onDownloadProgress: bridge.buildEmitter<{ percent: number; bytesPerSecond: number; transferred: number; total: number }>('updater:download-progress'),
+  onUpdateDownloaded: bridge.buildEmitter<{ version: string; releaseDate: string }>('updater:update-downloaded'),
+  onError: bridge.buildEmitter<{ message: string; stack?: string }>('updater:error'),
+};
+
 interface ISendMessageParams {
   input: string;
   msg_id: string;

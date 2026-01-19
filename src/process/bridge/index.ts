@@ -4,9 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { app } from 'electron';
 import { acpDetector } from '@/agent/acp/AcpDetector';
 import { initAcpConversationBridge } from './acpConversationBridge';
 import { initApplicationBridge } from './applicationBridge';
+import { initAutoUpdaterBridge } from './autoUpdaterBridge';
 import { initCodexConversationBridge } from './codexConversationBridge';
 import { initConversationBridge } from './conversationBridge';
 import { initDocumentBridge } from './documentBridge';
@@ -44,6 +46,11 @@ export function initAllBridges(): void {
   initWindowControlsBridge();
   initGitBridge();
   initTerminalBridge();
+
+  // Auto-updater bridge (only in packaged app)
+  if (app.isPackaged) {
+    initAutoUpdaterBridge();
+  }
 }
 
 /**
@@ -58,6 +65,6 @@ export async function initializeAcpDetector(): Promise<void> {
 }
 
 // 导出初始化函数供单独使用
-export { initAcpConversationBridge, initApplicationBridge, initCodexConversationBridge, initConversationBridge, initDatabaseBridge, initDialogBridge, initDocumentBridge, initFsBridge, initGitBridge, initMcpBridge, initModelBridge, initPreviewHistoryBridge, initProviderBridge, initSkillsBridge, initShellBridge, initTerminalBridge, initWindowControlsBridge };
+export { initAcpConversationBridge, initApplicationBridge, initAutoUpdaterBridge, initCodexConversationBridge, initConversationBridge, initDatabaseBridge, initDialogBridge, initDocumentBridge, initFsBridge, initGitBridge, initMcpBridge, initModelBridge, initPreviewHistoryBridge, initProviderBridge, initSkillsBridge, initShellBridge, initTerminalBridge, initWindowControlsBridge };
 // 导出窗口控制相关工具函数
 export { registerWindowMaximizeListeners } from './windowControlsBridge';
