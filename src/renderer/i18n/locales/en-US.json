@@ -222,7 +222,14 @@
     "collab": {
       "mergedViewTitle": "Collaboration · Merged view",
       "activeRole": "Active role",
-      "notInitialized": "Collaboration hasn’t been initialized for this conversation."
+      "notInitialized": "Collaboration hasn't been initialized for this conversation.",
+      "role": {
+        "pm": "PM",
+        "analyst": "Analyst",
+        "engineer": "Engineer"
+      },
+      "initialRole": "Initial role",
+      "initialRoleLabel": "Select initial conversation role"
     },
     "workspace": {
       "title": "Workspace",

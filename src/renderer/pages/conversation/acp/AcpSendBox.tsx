@@ -246,22 +246,26 @@ const AcpSendBox: React.FC<{
 
   // Check for and send initial message from guid page when ACP is authenticated
   useEffect(() => {
+    console.log('[AcpSendBox] Initial message check - conversation:', conversation_id, 'acpStatus:', acpStatus);
     if (!acpStatus) {
       return;
     }
     if (acpStatus !== 'session_active') {
+      console.log('[AcpSendBox] Waiting for session_active, current status:', acpStatus);
       return;
     }
 
     const sendInitialMessage = async () => {
       // Check flag at the actual execution time
       if (sendingInitialMessageRef.current) {
+        console.log('[AcpSendBox] Already sending initial message, skipping');
         return;
       }
       sendingInitialMessageRef.current = true;
       const storageKey = `acp_initial_message_${conversation_id}`;
       const storedMessage = sessionStorage.getItem(storageKey);
 
+      console.log('[AcpSendBox] Checking for initial message with key:', storageKey, 'found:', !!storedMessage);
       if (!storedMessage) {
         return;
       }

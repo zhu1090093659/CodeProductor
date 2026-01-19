@@ -13,7 +13,7 @@ const ChatSider: React.FC<{
 }> = ({ conversation }) => {
   let workspaceNode: React.ReactNode = null;
   if (conversation?.extra?.workspace) {
-    workspaceNode = <CodeConductorWorkspace workspace={conversation.extra.workspace} />;
+    workspaceNode = <CodeConductorWorkspace workspace={conversation.extra.workspace} conversationId={conversation.id} conversationType={conversation.type} />;
   }
 
   if (!workspaceNode) {

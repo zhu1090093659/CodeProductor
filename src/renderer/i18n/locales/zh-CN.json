@@ -219,7 +219,14 @@
     "collab": {
       "mergedViewTitle": "协作 · 合并视图",
       "activeRole": "当前角色",
-      "notInitialized": "此会话尚未初始化协作模式。"
+      "notInitialized": "此会话尚未初始化协作模式。",
+      "role": {
+        "pm": "项目经理",
+        "analyst": "需求分析师",
+        "engineer": "工程师"
+      },
+      "initialRole": "初始角色",
+      "initialRoleLabel": "选择初始对话角色"
     },
     "workspace": {
       "title": "工作空间",

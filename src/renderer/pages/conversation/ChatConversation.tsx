@@ -251,7 +251,9 @@ const ChatConversation: React.FC<{
 
     const desiredRole = ((): CollabRole => {
       const v = sessionStorage.getItem(`collab_active_role_${parentId}`);
-      return v === 'pm' || v === 'analyst' || v === 'engineer' ? v : 'pm';
+      const validRole = v === 'pm' || v === 'analyst' || v === 'engineer' ? v : 'pm';
+      console.log('[Collab] Initial role from sessionStorage:', v, '-> using:', validRole);
+      return validRole;
     })();
 
     void (async () => {
@@ -260,12 +262,35 @@ const ChatConversation: React.FC<{
 
       // Move initial message from parent to the desired child conversation so SendBox can pick it up.
       const childId = roleMap[desiredRole];
+
+      // Defensive check: ensure childId exists
+      if (!childId) {
+        console.error('[Collab] Failed to find conversation ID for role:', desiredRole, 'roleMap:', roleMap);
+        return;
+      }
+
+      console.log('[Collab] Routing initial message to role:', desiredRole, 'conversation:', childId);
+
+      // Send initial message directly instead of relying on SendBox auto-detection
+      // This avoids circular dependency where SendBox waits for acpStatus but initAgent is only called on first message
       if (conversation.type === 'acp') {
         const key = `acp_initial_message_${parentId}`;
         const value = sessionStorage.getItem(key);
         if (value) {
-          sessionStorage.setItem(`acp_initial_message_${childId}`, value);
-          sessionStorage.removeItem(key);
+          try {
+            const initialMessage = JSON.parse(value);
+            // Send message immediately to child conversation
+            console.log('[Collab] Sending initial message to ACP child:', childId, 'message:', initialMessage.input);
+            await ipcBridge.acpConversation.sendMessage.invoke({
+              conversation_id: childId,
+              input: initialMessage.input,
+              files: initialMessage.files,
+              msg_id: uuid(),
+            });
+            sessionStorage.removeItem(key);
+          } catch (error) {
+            console.error('[Collab] Failed to send initial message to ACP child:', error);
+          }
         }
       } else if (conversation.type === 'codex') {
         const key = `codex_initial_message_${parentId}`;

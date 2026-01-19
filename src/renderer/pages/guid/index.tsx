@@ -40,6 +40,21 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import useSWR, { mutate } from 'swr';
 import styles from './index.module.css';
 
+// Define CollabRole type for initial role selection
+type CollabRole = 'pm' | 'analyst' | 'engineer';
+
+/**
+ * Map assistant customAgentId to CollabRole
+ * Returns the role if the assistant is a builtin collab assistant, otherwise returns 'pm' as default
+ */
+const getCollabRoleFromAgentId = (customAgentId?: string): CollabRole => {
+  if (!customAgentId) return 'pm';
+  if (customAgentId === 'builtin-pm') return 'pm';
+  if (customAgentId === 'builtin-analyst') return 'analyst';
+  if (customAgentId === 'builtin-engineer') return 'engineer';
+  return 'pm'; // default fallback
+};
+
 /**
  * 缓存Provider的可用模型列表，避免重复计算
  */
@@ -774,13 +789,14 @@ const Guid: React.FC = () => {
             workspace: finalWorkspace,
             customWorkspace: isCustomWorkspace,
             projectId,
-            // Pass preset context (rules only)
-            presetContext: isPreset ? presetRules : undefined,
+            // In collab mode, parent conversation should not have preset context
+            // Child conversations will have their own preset contexts
+            presetContext: collabMode ? undefined : isPreset ? presetRules : undefined,
             // 启用的 skills 列表（通过 SkillManager 加载）/ Enabled skills list (loaded via SkillManager)
             enabledSkills: enabledSkills,
-            // 预设助手 ID，用于在会话面板显示助手名称和头像
-            // Preset assistant ID for displaying name and avatar in conversation panel
-            presetAssistantId: isPreset ? codexAgentInfo?.customAgentId : undefined,
+            // In collab mode, parent conversation should not have presetAssistantId
+            // Child conversations will have their own presetAssistantIds
+            presetAssistantId: collabMode ? undefined : isPreset ? codexAgentInfo?.customAgentId : undefined,
           },
         });
 
@@ -807,8 +823,11 @@ const Guid: React.FC = () => {
         };
         sessionStorage.setItem(`codex_initial_message_${conversation.id}`, JSON.stringify(initialMessage));
         if (collabMode) {
+          // Determine initial role from selected assistant
+          const initialRole = getCollabRoleFromAgentId(selectedAgentInfo?.customAgentId);
+          console.log('[Collab-Guid] Codex: selectedAgentInfo.customAgentId:', selectedAgentInfo?.customAgentId, '→ initialRole:', initialRole);
           sessionStorage.setItem(`collab_auto_enable_${conversation.id}`, '1');
-          sessionStorage.setItem(`collab_active_role_${conversation.id}`, 'pm');
+          sessionStorage.setItem(`collab_active_role_${conversation.id}`, initialRole);
         }
 
         // 然后导航到会话页面
@@ -846,13 +865,14 @@ const Guid: React.FC = () => {
           cliPath: acpAgentInfo?.cliPath,
           agentName: acpAgentInfo?.name, // 存储自定义代理的配置名称 / Store configured name for custom agents
           customAgentId: acpAgentInfo?.customAgentId, // 自定义代理的 UUID / UUID for custom agents
-          // Pass preset context (rules only)
-          presetContext: isPreset ? presetRules : undefined,
+          // In collab mode, parent conversation should not have preset context
+          // Child conversations will have their own preset contexts
+          presetContext: collabMode ? undefined : isPreset ? presetRules : undefined,
           // 启用的 skills 列表（通过 SkillManager 加载）/ Enabled skills list (loaded via SkillManager)
           enabledSkills: enabledSkills,
-          // 预设助手 ID，用于在会话面板显示助手名称和头像
-          // Preset assistant ID for displaying name and avatar in conversation panel
-          presetAssistantId: isPreset ? acpAgentInfo?.customAgentId : undefined,
+          // In collab mode, parent conversation should not have presetAssistantId
+          // Child conversations will have their own presetAssistantIds
+          presetAssistantId: collabMode ? undefined : isPreset ? acpAgentInfo?.customAgentId : undefined,
         },
       });
 
@@ -882,8 +902,11 @@ const Guid: React.FC = () => {
       // Store initial message in sessionStorage to be picked up by the conversation page
       sessionStorage.setItem(`acp_initial_message_${conversation.id}`, JSON.stringify(initialMessage));
       if (collabMode) {
+        // Determine initial role from selected assistant
+        const initialRole = getCollabRoleFromAgentId(selectedAgentInfo?.customAgentId);
+        console.log('[Collab-Guid] ACP: selectedAgentInfo.customAgentId:', selectedAgentInfo?.customAgentId, '→ initialRole:', initialRole);
         sessionStorage.setItem(`collab_auto_enable_${conversation.id}`, '1');
-        sessionStorage.setItem(`collab_active_role_${conversation.id}`, 'pm');
+        sessionStorage.setItem(`collab_active_role_${conversation.id}`, initialRole);
       }
 
       // 然后导航到会话页面

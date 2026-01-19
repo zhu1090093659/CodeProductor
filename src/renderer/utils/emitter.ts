@@ -34,6 +34,16 @@ interface EventTypes {
   'workspace.preview.open': [{ content: string; contentType: PreviewContentType; metadata?: PreviewMetadata }];
   'workspace.preview.close': [string]; // workspace path
 
+  // 工作区 Diff 事件 / Workspace diff events
+  'workspace.diff.fileChanged': [
+    {
+      workspace: string;
+      filePath: string;
+      diff: string;
+      changeId?: string;
+    },
+  ];
+
   // Conversation thought updates (rendered in chat view)
   // Note: this is UI-only state and is not persisted in DB.
   'conversation.thought.update': [{ conversationId: string; thought: ThoughtData; running: boolean }];

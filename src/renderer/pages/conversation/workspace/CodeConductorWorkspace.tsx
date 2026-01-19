@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Empty, Tabs } from '@arco-design/web-react';
-import { addEventListener } from '@/renderer/utils/emitter';
+import { addEventListener, emitter } from '@/renderer/utils/emitter';
 import { ipcBridge } from '@/common';
 import TerminalTab from './TerminalTab';
 import DiffTab from './DiffTab';
@@ -23,9 +23,20 @@ import WordPreview from '@/renderer/pages/conversation/workspace/preview/compone
 
 const normalizeWorkspacePath = (value: string) => value.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
 
+const hashString = (input: string) => {
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16);
+};
+
 const CodeConductorWorkspace: React.FC<{
   workspace: string;
-}> = ({ workspace }) => {
+  conversationId: string;
+  conversationType: 'acp' | 'codex';
+}> = ({ workspace, conversationId, conversationType }) => {
   const [activeTab, setActiveTab] = useState('preview');
   const [preview, setPreview] = useState<PreviewLoadResult | null>(null);
 
@@ -70,6 +81,63 @@ const CodeConductorWorkspace: React.FC<{
       }
     });
   }, [workspace]);
+
+  useEffect(() => {
+    const seenKeys = new Set<string>();
+    const stream = conversationType === 'acp' ? ipcBridge.acpConversation.responseStream : ipcBridge.codexConversation.responseStream;
+
+    return stream.on((message) => {
+      if (!message || message.conversation_id !== conversationId) return;
+
+      // ACP/Gemini: tool_group -> WriteFile results contain fileDiff + fileName
+      if (message.type === 'tool_group') {
+        const tools = Array.isArray(message.data) ? (message.data as any[]) : [];
+        for (const tool of tools) {
+          if (!tool || tool.name !== 'WriteFile' || tool.status !== 'Success') continue;
+          const resultDisplay = tool.resultDisplay;
+          if (!resultDisplay || typeof resultDisplay !== 'object') continue;
+          if (!('fileDiff' in resultDisplay) || !('fileName' in resultDisplay)) continue;
+
+          const fileDiff = String((resultDisplay as any).fileDiff || '');
+          const fileName = String((resultDisplay as any).fileName || '');
+          if (!fileDiff.trim()) continue;
+
+          const key = `${message.msg_id}:${tool.callId}`;
+          if (seenKeys.has(key)) continue;
+          seenKeys.add(key);
+
+          emitter.emit('workspace.diff.fileChanged', {
+            workspace,
+            filePath: fileName,
+            diff: fileDiff,
+            changeId: key,
+          });
+          setActiveTab('diff');
+        }
+        return;
+      }
+
+      // Codex: turn_diff contains unified_diff per file
+      if (message.type === 'codex_tool_call') {
+        const update = message.data as any;
+        if (update?.subtype !== 'turn_diff') return;
+        const diff = String(update?.data?.unified_diff || '');
+        if (!diff.trim()) return;
+
+        const key = `${message.msg_id}:${update.toolCallId}:${hashString(diff)}`;
+        if (seenKeys.has(key)) return;
+        seenKeys.add(key);
+
+        emitter.emit('workspace.diff.fileChanged', {
+          workspace,
+          filePath: '',
+          diff,
+          changeId: key,
+        });
+        setActiveTab('diff');
+      }
+    });
+  }, [conversationId, conversationType, workspace]);
 
   const renderPreviewBody = () => {
     if (!preview) {

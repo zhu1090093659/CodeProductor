@@ -186,6 +186,7 @@ export const previewHistory = {
 
 export const git = {
   diff: bridge.buildProvider<IBridgeResponse<{ diff: string }>, { cwd: string }>('git.diff'),
+  restoreFile: bridge.buildProvider<IBridgeResponse, { cwd: string; filePath: string }>('git.restore-file'),
 };
 
 // 预览面板相关接口 / Preview panel API
