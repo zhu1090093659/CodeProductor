@@ -91,7 +91,7 @@ const ChatLayout: React.FC<{
     } catch {
       // 忽略错误
     }
-    return true; // 默认折叠
+    return false; // 默认展开
   });
   // 当前活跃的会话 ID（用于记录用户手动操作偏好）
   // Current active conversation ID (for recording user manual operation preference)
@@ -196,12 +196,10 @@ const ChatLayout: React.FC<{
           setRightSiderCollapsed(shouldCollapse);
         }
       } else {
-        // 无用户偏好：有文件展开，没文件折叠
-        // No user preference: expand if has files, collapse if not
+        // 无用户偏好：有文件展开；无文件时不强制折叠（保持默认展开/用户当前状态）
+        // No user preference: expand if has files; don't force-collapse when empty
         if (detail.hasFiles && rightSiderCollapsed) {
           setRightSiderCollapsed(false);
-        } else if (!detail.hasFiles && !rightSiderCollapsed) {
-          setRightSiderCollapsed(true);
         }
       }
     };
