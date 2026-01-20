@@ -48,7 +48,8 @@ const buildClaudeEnv = (preset: ProviderPreset, config: CliProviderConfig) => {
     }
   });
   const apiKeyField = (preset as { apiKeyField?: string }).apiKeyField || 'ANTHROPIC_AUTH_TOKEN';
-  if (config.apiKey) {
+  const hasApiKey = Boolean(config.apiKey);
+  if (hasApiKey) {
     env[apiKeyField] = config.apiKey;
   }
   if (config.baseUrl) {
@@ -56,6 +57,12 @@ const buildClaudeEnv = (preset: ProviderPreset, config: CliProviderConfig) => {
   }
   if (config.model) {
     env['ANTHROPIC_MODEL'] = config.model;
+  }
+  if (hasApiKey && config.model) {
+    env['ANTHROPIC_SMALL_FAST_MODEL'] = config.model;
+    env['ANTHROPIC_DEFAULT_SONNET_MODEL'] = config.model;
+    env['ANTHROPIC_DEFAULT_OPUS_MODEL'] = config.model;
+    env['ANTHROPIC_DEFAULT_HAIKU_MODEL'] = config.model;
   }
   if (config.maxThinkingTokens) {
     const parsed = Number.parseInt(config.maxThinkingTokens, 10);

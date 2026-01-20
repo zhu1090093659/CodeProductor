@@ -140,6 +140,86 @@ const getKnownClaudeModels = (): string[] => {
   ];
 };
 
+const normalizeModelId = (value: unknown): string | null => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+  }
+  if (typeof value === 'number') {
+    return String(value);
+  }
+  return null;
+};
+
+const extractModelId = (item: unknown): string | null => {
+  const direct = normalizeModelId(item);
+  if (direct) return direct;
+  if (!item || typeof item !== 'object') return null;
+  const obj = item as Record<string, unknown>;
+  return normalizeModelId(obj.id) || normalizeModelId(obj.name) || normalizeModelId(obj.model);
+};
+
+const extractModelIdsFromResponse = (payload: unknown): string[] => {
+  if (!payload) return [];
+  if (Array.isArray(payload)) {
+    const ids = payload.map(extractModelId).filter((id): id is string => Boolean(id));
+    return Array.from(new Set(ids));
+  }
+  if (typeof payload !== 'object') return [];
+  const obj = payload as Record<string, unknown>;
+  const list = Array.isArray(obj.data) ? obj.data : Array.isArray(obj.models) ? obj.models : null;
+  if (!list) return [];
+  const ids = list.map(extractModelId).filter((id): id is string => Boolean(id));
+  return Array.from(new Set(ids));
+};
+
+const getOpenAIModelListUrls = (baseUrl: string): string[] => {
+  const normalized = normalizeBaseUrl(baseUrl);
+  if (!normalized) return [];
+  const urls = [`${normalized}/models`];
+  if (!/\/v1$/i.test(normalized)) {
+    urls.push(`${normalized}/v1/models`);
+  }
+  return urls;
+};
+
+const fetchOpenAICompatibleModels = async (baseUrl: string, apiKey: string): Promise<string[] | null> => {
+  const urls = getOpenAIModelListUrls(baseUrl);
+  if (!urls.length) return null;
+
+  const headerCandidates: Array<Record<string, string>> = [{ Authorization: `Bearer ${apiKey}` }, { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' }];
+
+  for (const url of urls) {
+    for (const headers of headerCandidates) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      try {
+        const response = await fetch(url, {
+          method: 'GET',
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            ...headers,
+          },
+        });
+
+        if (!response.ok) continue;
+        const data = await response.json().catch(() => null);
+        const models = extractModelIdsFromResponse(data);
+        if (models.length > 0) {
+          return models;
+        }
+      } catch {
+        // continue trying other endpoints/headers
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
+  }
+
+  return null;
+};
+
 export function initModelBridge(): void {
   ipcBridge.mode.fetchModelList.provider(async function fetchModelList({ base_url, api_key, try_fix, platform }): Promise<{ success: boolean; msg?: string; data?: { mode: Array<string>; fix_base_url?: string } }> {
     // 如果是多key（包含逗号或回车），只取第一个key来获取模型列表
@@ -149,8 +229,14 @@ export function initModelBridge(): void {
       actualApiKey = api_key.split(/[,\n]/)[0].trim();
     }
 
-    // Claude / Anthropic: no public models endpoint, return curated list (supports official mode)
+    // Claude / Anthropic: try third-party OpenAI-compatible models endpoint, fall back to curated list.
     if (platform?.includes('anthropic') || platform?.includes('claude')) {
+      if (base_url && base_url.trim() && actualApiKey && actualApiKey.trim()) {
+        const models = await fetchOpenAICompatibleModels(base_url, actualApiKey);
+        if (models && models.length > 0) {
+          return { success: true, data: { mode: models } };
+        }
+      }
       return { success: true, data: { mode: getKnownClaudeModels() } };
     }
 

@@ -50,8 +50,13 @@ export async function applyCliProvider(payload: CliProviderApplyPayload): Promis
     }
     const env = { ...existingEnv, ...payload.env };
     const settingsPatch = payload.settingsPatch && typeof payload.settingsPatch === 'object' ? payload.settingsPatch : {};
+    const usesNonBrowserLogin = typeof payload.env?.['ANTHROPIC_AUTH_TOKEN'] === 'string' || typeof payload.env?.['ANTHROPIC_API_KEY'] === 'string';
+    const nextCurrent = { ...current };
+    if (usesNonBrowserLogin && 'model' in nextCurrent) {
+      delete nextCurrent.model;
+    }
     // Merge root-level settings patch but keep env as the final merged env.
-    await writeJson(paths.claudeSettings, { ...current, ...settingsPatch, env });
+    await writeJson(paths.claudeSettings, { ...nextCurrent, ...settingsPatch, env });
     return;
   }
 
