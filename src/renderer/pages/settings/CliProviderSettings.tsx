@@ -58,6 +58,9 @@ const buildClaudeEnv = (preset: ProviderPreset, config: CliProviderConfig) => {
   if (config.model) {
     env['ANTHROPIC_MODEL'] = config.model;
   }
+  if (!env['ANTHROPIC_MODEL']) {
+    env['ANTHROPIC_MODEL'] = 'default';
+  }
   if (hasApiKey && config.model) {
     env['ANTHROPIC_SMALL_FAST_MODEL'] = config.model;
     env['ANTHROPIC_DEFAULT_SONNET_MODEL'] = config.model;
@@ -144,9 +147,13 @@ const CliProviderSettings: React.FC<{ embedded?: boolean }> = ({ embedded = fals
         const shouldUseOfficial = isOfficialCliPreset(preset) && !config.apiKey;
         const selectedModel = config.model || config.enabledModels?.[0];
         const env = buildClaudeEnv(preset, { ...config, model: selectedModel });
+        const thirdPartyEnvKeys = ['ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_API_KEY', 'ANTHROPIC_BASE_URL', 'ANTHROPIC_SMALL_FAST_MODEL', 'ANTHROPIC_DEFAULT_SONNET_MODEL', 'ANTHROPIC_DEFAULT_OPUS_MODEL', 'ANTHROPIC_DEFAULT_HAIKU_MODEL'];
         const clearEnvKeys: string[] = [];
         if (shouldUseOfficial) {
-          clearEnvKeys.push('ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_API_KEY', 'ANTHROPIC_BASE_URL');
+          clearEnvKeys.push(...thirdPartyEnvKeys);
+          for (const key of thirdPartyEnvKeys) {
+            delete env[key];
+          }
         }
         // Only clear MAX_THINKING_TOKENS if thinking mode is explicitly disabled
         const thinkingEnabled = typeof config.alwaysThinkingEnabled === 'boolean' ? config.alwaysThinkingEnabled : true;
