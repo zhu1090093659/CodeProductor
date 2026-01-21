@@ -51,6 +51,7 @@ export interface IConfigStorageRefer {
   'tools.imageGenerationModel': TProviderWithModel & {
     switch: boolean;
   };
+  'tools.interactiveMode'?: boolean;
   'tools.agentBrowser'?: AgentBrowserConfig;
   // 是否在粘贴文件到工作区时询问确认（true = 不再询问）
   'workspace.pasteConfirm'?: boolean;

@@ -11,6 +11,7 @@ import { ProcessConfig, loadSkillsContent } from '../initStorage';
 import { addMessage, addOrUpdateMessage, nextTickToLocalFinish } from '../message';
 import BaseAgentManager from './BaseAgentManager';
 import { handlePreviewOpenEvent } from '../utils/previewUtils';
+import { applyInteractivePromptIfEnabled } from '../utils/interactivePrompt';
 
 interface AcpAgentManagerData {
   workspace?: string;
@@ -122,13 +123,16 @@ class AcpAgentManager extends BaseAgentManager<AcpAgentManagerData> {
   }> {
     try {
       await this.initAgent(this.options);
+      const hasContent = typeof data.content === 'string';
+      let contentToSend = hasContent ? data.content : '';
+      if (hasContent && contentToSend.includes(CodeConductor_FILES_MARKER)) {
+        contentToSend = contentToSend.split(CodeConductor_FILES_MARKER)[0].trimEnd();
+      }
+      if (hasContent) {
+        contentToSend = await applyInteractivePromptIfEnabled(contentToSend);
+      }
       // Save user message to chat history ONLY after successful sending
       if (data.msg_id && data.content) {
-        let contentToSend = data.content;
-        if (contentToSend.includes(CodeConductor_FILES_MARKER)) {
-          contentToSend = contentToSend.split(CodeConductor_FILES_MARKER)[0].trimEnd();
-        }
-
         // 首条消息时注入预设规则和 skills（来自智能助手配置）
         // Inject preset context and skills on first message (from smart assistant config)
         if (this.isFirstMessage) {
@@ -178,7 +182,7 @@ class AcpAgentManager extends BaseAgentManager<AcpAgentManagerData> {
         }
         return result;
       }
-      return await this.agent.sendMessage(data);
+      return await this.agent.sendMessage(hasContent ? { ...data, content: contentToSend } : data);
     } catch (e) {
       const message: IResponseMessage = {
         type: 'error',

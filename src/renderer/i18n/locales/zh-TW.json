@@ -321,6 +321,8 @@
       "activeRole": "目前角色",
       "notInitialized": "此對話尚未初始化協作模式。"
     },
+    "interactiveMode": "互動式",
+    "interactiveModeTooltip": "互動式需求挖掘",
     "workspace": {
       "title": "工作空間",
       "pasteConfirm_title": "貼上檔案",

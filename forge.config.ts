@@ -88,7 +88,7 @@ module.exports = {
     executableName: 'CodeConductor',
     out: path.resolve(__dirname, 'out'),
     tmpdir: path.resolve(__dirname, '../CodeConductor-tmp'),
-    extraResource: [path.resolve(__dirname, 'public')],
+    extraResource: [path.resolve(__dirname, 'public'), path.resolve(__dirname, 'resources', 'bin')],
     win32metadata: {
       CompanyName: 'CodeConductor',
       FileDescription: 'AI Agent Desktop Interface',

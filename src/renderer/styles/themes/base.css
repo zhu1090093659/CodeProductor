@@ -338,6 +338,12 @@ body,
   transform: translateY(1px);
 }
 
+.mode-toggle-active {
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border-base)) !important;
+  background: color-mix(in srgb, var(--primary) 14%, var(--fill-0)) !important;
+  box-shadow: var(--shadow-sm);
+}
+
 .collab-role-switch {
   display: flex;
   align-items: center;

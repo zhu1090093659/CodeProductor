@@ -231,6 +231,8 @@
       "initialRole": "Initial role",
       "initialRoleLabel": "Select initial conversation role"
     },
+    "interactiveMode": "Interactive",
+    "interactiveModeTooltip": "Interactive requirement discovery",
     "workspace": {
       "title": "Workspace",
       "pasteConfirm_title": "Paste files",

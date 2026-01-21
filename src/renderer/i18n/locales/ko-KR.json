@@ -224,6 +224,8 @@
       "activeRole": "현재 역할",
       "notInitialized": "이 대화에 협업이 아직 초기화되지 않았습니다."
     },
+    "interactiveMode": "대화형",
+    "interactiveModeTooltip": "대화형 요구사항 탐색",
     "workspace": {
       "title": "워크스페이스",
       "pasteConfirm_title": "파일 붙여넣기",

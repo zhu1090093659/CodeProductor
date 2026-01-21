@@ -9,6 +9,7 @@ import { ASSISTANT_PRESETS } from '@/common/presets/assistantPresets';
 import type { IResponseMessage } from '@/common/ipcBridge';
 import type { IMessageAgentStatus } from '@/common/chatLib';
 import type { TChatConversation } from '@/common/storage';
+import { ConfigStorage } from '@/common/storage';
 import { uuid } from '@/common/utils';
 import { Button, Dropdown, Menu, Tooltip, Typography } from '@arco-design/web-react';
 import { History } from '@icon-park/react';
@@ -25,6 +26,7 @@ import { iconColors } from '@/renderer/theme/colors';
 import addChatIcon from '@/renderer/assets/add-chat.svg';
 import CoworkLogo from '@/renderer/assets/cowork.svg';
 import CollabChat from '@/renderer/pages/conversation/collab/CollabChat';
+import { INTERACTIVE_MODE_CONFIG_KEY } from '@/common/interactivePrompt';
 // import SkillRuleGenerator from './components/SkillRuleGenerator'; // Temporarily hidden
 
 type CollabRole = 'pm' | 'analyst' | 'engineer';
@@ -105,6 +107,8 @@ const ChatConversation: React.FC<{
   const navigate = useNavigate();
   const workspaceEnabled = Boolean(conversation?.extra?.workspace);
   const [agentStatus, setAgentStatus] = useState<IMessageAgentStatus['content'] | null>(null);
+  const [interactiveMode, setInteractiveMode] = useState(false);
+  const [interactiveModeLoaded, setInteractiveModeLoaded] = useState(false);
 
   // If user navigates to a hidden collab child, redirect to parent.
   useEffect(() => {
@@ -116,6 +120,39 @@ const ChatConversation: React.FC<{
       console.error('Navigation failed:', error);
     });
   }, [conversation?.extra, conversation?.id, navigate]);
+
+  useEffect(() => {
+    let isActive = true;
+    ConfigStorage.get(INTERACTIVE_MODE_CONFIG_KEY)
+      .then((stored) => {
+        if (!isActive) return;
+        if (typeof stored === 'boolean') {
+          setInteractiveMode(stored);
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to load interactive mode:', error);
+      })
+      .finally(() => {
+        if (isActive) {
+          setInteractiveModeLoaded(true);
+        }
+      });
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!interactiveModeLoaded) return;
+    ConfigStorage.set(INTERACTIVE_MODE_CONFIG_KEY, interactiveMode).catch((error) => {
+      console.error('Failed to save interactive mode:', error);
+    });
+  }, [interactiveMode, interactiveModeLoaded]);
+
+  const toggleInteractiveMode = useCallback(() => {
+    setInteractiveMode((prev) => !prev);
+  }, []);
 
   const conversationNode = useMemo(() => {
     if (!conversation) return null;
@@ -307,7 +344,18 @@ const ChatConversation: React.FC<{
     })();
   }, [conversation, enableCollab]);
 
-  const headerExtra = useMemo(() => {
+  const interactiveToggle = useMemo(() => {
+    if (!conversation?.id) return null;
+    return (
+      <Tooltip content={t('conversation.interactiveModeTooltip', { defaultValue: 'Interactive requirement discovery' })}>
+        <Button size='mini' shape='round' aria-pressed={interactiveMode} className={`collab-enable-btn ${interactiveMode ? 'mode-toggle-active' : ''}`} onClick={toggleInteractiveMode}>
+          {t('conversation.interactiveMode', { defaultValue: 'Interactive' })}
+        </Button>
+      </Tooltip>
+    );
+  }, [conversation?.id, interactiveMode, t, toggleInteractiveMode]);
+
+  const collabEnableButton = useMemo(() => {
     if (!conversation?.id) return null;
     if (!conversation.extra?.workspace) return null;
 
@@ -323,6 +371,16 @@ const ChatConversation: React.FC<{
       </Tooltip>
     );
   }, [conversation, enableCollab]);
+
+  const headerExtra = useMemo(() => {
+    if (!interactiveToggle && !collabEnableButton) return null;
+    return (
+      <div className='flex items-center gap-8px'>
+        {interactiveToggle}
+        {collabEnableButton}
+      </div>
+    );
+  }, [collabEnableButton, interactiveToggle]);
 
   // 获取预设助手信息（如果有）/ Get preset assistant info for ACP/Codex conversations
   const presetAssistantInfo = useMemo(() => {

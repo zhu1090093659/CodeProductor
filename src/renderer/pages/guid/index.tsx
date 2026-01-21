@@ -30,6 +30,7 @@ import { allSupportedExts, type FileMetadata, getCleanFileNames } from '@/render
 import { iconColors } from '@/renderer/theme/colors';
 import { emitter } from '@/renderer/utils/emitter';
 import { hasSpecificModelCapability } from '@/renderer/utils/modelCapabilities';
+import { INTERACTIVE_MODE_CONFIG_KEY } from '@/common/interactivePrompt';
 import type { AcpBackend, AcpBackendConfig } from '@/types/acpTypes';
 import { Button, ConfigProvider, Dropdown, Input, Menu, Tooltip } from '@arco-design/web-react';
 import { IconClose } from '@arco-design/web-react/icon';
@@ -218,6 +219,8 @@ const Guid: React.FC = () => {
   const [dir, setDir] = useState<string>('');
   const [collabMode, setCollabMode] = useState(true);
   const [isCollabModeLoaded, setIsCollabModeLoaded] = useState(false);
+  const [interactiveMode, setInteractiveMode] = useState(false);
+  const [isInteractiveModeLoaded, setIsInteractiveModeLoaded] = useState(false);
   const { activeProject } = useProjects();
   const dirRef = useRef('');
   const lastProjectWorkspaceRef = useRef<string | null>(null);
@@ -267,6 +270,35 @@ const Guid: React.FC = () => {
       console.error('Failed to save collab mode:', error);
     });
   }, [collabMode, isCollabModeLoaded]);
+
+  useEffect(() => {
+    let isActive = true;
+    ConfigStorage.get(INTERACTIVE_MODE_CONFIG_KEY)
+      .then((stored) => {
+        if (!isActive) return;
+        if (typeof stored === 'boolean') {
+          setInteractiveMode(stored);
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to load interactive mode:', error);
+      })
+      .finally(() => {
+        if (isActive) {
+          setIsInteractiveModeLoaded(true);
+        }
+      });
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isInteractiveModeLoaded) return;
+    ConfigStorage.set(INTERACTIVE_MODE_CONFIG_KEY, interactiveMode).catch((error) => {
+      console.error('Failed to save interactive mode:', error);
+    });
+  }, [interactiveMode, isInteractiveModeLoaded]);
 
   useEffect(() => {
     if (!activeProject?.workspace) return;
@@ -714,6 +746,10 @@ const Guid: React.FC = () => {
 
   const toggleCollabMode = useCallback(() => {
     setCollabMode((prev) => !prev);
+  }, []);
+
+  const toggleInteractiveMode = useCallback(() => {
+    setInteractiveMode((prev) => !prev);
   }, []);
 
   useEffect(() => {
@@ -1444,11 +1480,18 @@ const Guid: React.FC = () => {
                     {currentModel ? (currentModel.id?.startsWith('cli:') && currentModel.useModel === 'default' ? t('common.default') : currentModel.useModel) : t('conversation.welcome.selectModel')}
                   </Button>
                 </Dropdown>
-                <Tooltip content={localeKey.startsWith('zh') ? '协作模式 (PM/Analyst/Engineer)' : 'Collaboration mode (PM/Analyst/Engineer)'}>
-                  <Button shape='round' type='secondary' aria-pressed={collabMode} onClick={toggleCollabMode} className={`ml-8px ${styles.collabToggleBtn} ${collabMode ? styles.collabToggleBtnActive : ''}`}>
-                    {localeKey.startsWith('zh') ? '协作' : 'Collab'}
-                  </Button>
-                </Tooltip>
+                <div className='flex items-center gap-8px ml-8px'>
+                  <Tooltip content={t('conversation.interactiveModeTooltip', { defaultValue: 'Interactive requirement discovery' })}>
+                    <Button shape='round' type='secondary' aria-pressed={interactiveMode} onClick={toggleInteractiveMode} className={`${styles.collabToggleBtn} ${interactiveMode ? styles.collabToggleBtnActive : ''}`}>
+                      {t('conversation.interactiveMode', { defaultValue: 'Interactive' })}
+                    </Button>
+                  </Tooltip>
+                  <Tooltip content={localeKey.startsWith('zh') ? '协作模式 (PM/Analyst/Engineer)' : 'Collaboration mode (PM/Analyst/Engineer)'}>
+                    <Button shape='round' type='secondary' aria-pressed={collabMode} onClick={toggleCollabMode} className={`${styles.collabToggleBtn} ${collabMode ? styles.collabToggleBtnActive : ''}`}>
+                      {localeKey.startsWith('zh') ? '协作' : 'Collab'}
+                    </Button>
+                  </Tooltip>
+                </div>
               </div>
               <div className={styles.actionSubmit}>
                 <Button

@@ -350,6 +350,8 @@
       "activeRole": "現在のロール",
       "notInitialized": "この会話ではコラボレーションがまだ初期化されていません。"
     },
+    "interactiveMode": "対話式",
+    "interactiveModeTooltip": "対話式の要件ヒアリング",
     "workspace": {
       "title": "ワークスペース",
       "pasteConfirm_title": "ファイルを貼り付け",

@@ -25,6 +25,7 @@ import { getConfiguredAppClientName, getConfiguredAppClientVersion, getConfigure
 import { mapPermissionDecision } from '@/common/codex/utils';
 import { PERMISSION_DECISION_MAP } from '@/common/codex/types/permissionTypes';
 import { handlePreviewOpenEvent } from '@process/utils/previewUtils';
+import { applyInteractivePromptIfEnabled } from '@process/utils/interactivePrompt';
 
 const APP_CLIENT_NAME = getConfiguredAppClientName();
 const APP_CLIENT_VERSION = getConfiguredAppClientVersion();
@@ -161,7 +162,8 @@ class CodexAgentManager extends BaseAgentManager<CodexAgentManagerData> implemen
   async sendMessage(data: { content: string; files?: string[]; msg_id?: string }) {
     try {
       await this.bootstrap;
-      const contentToSend = data.content?.includes(CodeConductor_FILES_MARKER) ? data.content.split(CodeConductor_FILES_MARKER)[0].trimEnd() : data.content;
+      const hasContent = typeof data.content === 'string';
+      const contentToSend = hasContent && data.content?.includes(CodeConductor_FILES_MARKER) ? data.content.split(CodeConductor_FILES_MARKER)[0].trimEnd() : data.content || '';
 
       // Save user message to chat history only (renderer already inserts right-hand bubble)
       if (data.msg_id && data.content) {
@@ -179,6 +181,9 @@ class CodexAgentManager extends BaseAgentManager<CodexAgentManagerData> implemen
 
       // 处理文件引用 - 参考 ACP 的文件引用处理
       let processedContent = this.agent.getFileOperationHandler().processFileReferences(contentToSend, data.files);
+      if (hasContent) {
+        processedContent = await applyInteractivePromptIfEnabled(processedContent);
+      }
 
       // 如果是第一条消息，通过 newSession 发送以避免双消息问题
       if (this.isFirstMessage) {

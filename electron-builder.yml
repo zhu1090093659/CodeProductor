@@ -77,6 +77,8 @@ extraResources:
     to: .
   - from: resources/cc_logo.png
     to: cc_logo.png
+  - from: resources/bin
+    to: bin
 
 win:
   target:

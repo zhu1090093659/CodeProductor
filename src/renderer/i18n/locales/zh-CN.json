@@ -228,6 +228,8 @@
       "initialRole": "初始角色",
       "initialRoleLabel": "选择初始对话角色"
     },
+    "interactiveMode": "交互式",
+    "interactiveModeTooltip": "交互式需求挖掘",
     "workspace": {
       "title": "工作空间",
       "pasteConfirm_title": "粘贴文件",
