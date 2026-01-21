@@ -12,6 +12,6 @@ jobs:
           github-token: ${{ secrets.GH_TOKEN }}
           jira-token: ${{ secrets.JIRA_TOKEN }}
           jira-base-url: https://atc666.atlassian.net
-          skip-branches: '^(production-release|main|master|release\/v\d+)$' #optional 
+          skip-branches: '^\d+' #optional 
           custom-issue-number-regexp: '^\d+' #optional
           jira-project-key: 'PRJ' #optional    
