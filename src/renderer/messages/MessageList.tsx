@@ -21,6 +21,7 @@ import { useAddEventListener } from '../utils/emitter';
 import MessageCodexPermission from './codex/MessageCodexPermission';
 import MessageCodexToolCall from './codex/MessageCodexToolCall';
 import MessageFileChanges from './codex/MessageFileChanges';
+import { TimelineIndicator, type TimelineType } from './components';
 import { useMessageList } from './hooks';
 import MessageTips from './MessageTips';
 import MessageToolCall from './MessageToolCall';
@@ -57,15 +58,18 @@ const MessageList: React.FC<{
     if (!shouldShowThought) return null;
     return (
       <div key='thought-display' className='chat-message-row message-item px-8px m-t-12px'>
-        <div className='w-full min-w-0'>
-          <ThoughtDisplay
-            thought={thought}
-            running={thoughtRunning}
-            style='compact'
-            onStop={() => {
-              return ipcBridge.conversation.stop.invoke({ conversation_id: conversationId }).then(() => {});
-            }}
-          />
+        <div className='timeline-message-row w-full'>
+          <TimelineIndicator type='thinking' isFirst={false} isLast={false} isActive={thoughtRunning} />
+          <div className='timeline-message-content'>
+            <ThoughtDisplay
+              thought={thought}
+              running={thoughtRunning}
+              style='compact'
+              onStop={() => {
+                return ipcBridge.conversation.stop.invoke({ conversation_id: conversationId }).then(() => {});
+              }}
+            />
+          </div>
         </div>
       </div>
     );
@@ -96,7 +100,40 @@ const MessageList: React.FC<{
     return null;
   }, [list, shouldShowThought]);
 
-  const renderMessageWrapper = (message: TMessage, body: React.ReactNode) => {
+  /**
+   * Map message type to timeline type
+   */
+  const getTimelineType = (message: TMessage): TimelineType => {
+    // User messages (right position)
+    if (message.position === 'right') {
+      return 'user';
+    }
+
+    // Permission messages
+    if (message.type === 'acp_permission' || message.type === 'codex_permission') {
+      return 'permission';
+    }
+
+    // Tool messages
+    if (message.type === 'tool_call' || message.type === 'tool_group' || message.type === 'acp_tool_call' || message.type === 'codex_tool_call') {
+      return 'tool';
+    }
+
+    // AI response messages (left position)
+    if (message.position === 'left' && message.type === 'text') {
+      return 'response';
+    }
+
+    // Default to response
+    return 'response';
+  };
+
+  const renderMessageWrapper = (message: TMessage, body: React.ReactNode, index: number, total: number) => {
+    const timelineType = getTimelineType(message);
+    const isFirst = index === 0;
+    const isLast = index === total - 1;
+    const isActive = false; // TODO: Determine active state based on streaming
+
     return (
       <div
         className={classNames('chat-message-row flex items-start message-item [&>div]:max-w-full px-8px m-t-12px', message.type, {
@@ -105,7 +142,10 @@ const MessageList: React.FC<{
           'justify-start': message.position === 'left',
         })}
       >
-        {body}
+        <div className='timeline-message-row w-full'>
+          <TimelineIndicator type={timelineType} isFirst={isFirst} isLast={isLast} isActive={isActive} />
+          <div className='timeline-message-content'>{body}</div>
+        </div>
       </div>
     );
   };
@@ -182,33 +222,38 @@ const MessageList: React.FC<{
 
       return (
         <div key={`tool-batch-${batchKey}`} className={classNames('chat-message-row flex items-start message-item [&>div]:max-w-full px-8px m-t-12px', 'tool_batch')}>
-          <div className='w-full min-w-0 border border-[var(--bg-3)] rounded-10px bg-1'>
-            <div className='flex items-center justify-between px-10px py-8px border-b border-[var(--bg-3)]'>
-              <div className='flex items-center gap-8px min-w-0'>
-                {headerNode ? <span className='shrink-0'>{headerNode}</span> : null}
-                <span className='text-sm text-t-primary'>🔧</span>
-                <span className='text-sm text-t-primary truncate'>{`Tools × ${batch.length}`}</span>
-                {forceOpen && <span className='text-xs text-t-secondary'>action required</span>}
-              </div>
-              {!forceOpen && (
-                <button type='button' className='flex items-center gap-4px text-xs text-t-secondary hover:text-t-primary transition-colors border-none bg-transparent cursor-pointer' onClick={toggle}>
-                  <span>{isOpen ? t('common.collapse') : t('common.expandMore')}</span>
-                  {isOpen ? <Up theme='outline' size={14} fill='currentColor' /> : <Down theme='outline' size={14} fill='currentColor' />}
-                </button>
-              )}
-            </div>
-
-            {isOpen && (
-              <div className='px-10px py-10px'>
-                <div className='flex flex-col gap-10px'>
-                  {batch.map((m) => (
-                    <div key={m.id} className='min-w-0'>
-                      {renderMessageCore(m)}
-                    </div>
-                  ))}
+          <div className='timeline-message-row w-full'>
+            <TimelineIndicator type='tool' isFirst={false} isLast={false} isActive={false} />
+            <div className='timeline-message-content'>
+              <div className='border border-[var(--bg-3)] rounded-10px bg-1'>
+                <div className='flex items-center justify-between px-10px py-8px border-b border-[var(--bg-3)]'>
+                  <div className='flex items-center gap-8px min-w-0'>
+                    {headerNode ? <span className='shrink-0'>{headerNode}</span> : null}
+                    <span className='text-sm text-t-primary'>🔧</span>
+                    <span className='text-sm text-t-primary truncate'>{`Tools × ${batch.length}`}</span>
+                    {forceOpen && <span className='text-xs text-t-secondary'>action required</span>}
+                  </div>
+                  {!forceOpen && (
+                    <button type='button' className='flex items-center gap-4px text-xs text-t-secondary hover:text-t-primary transition-colors border-none bg-transparent cursor-pointer' onClick={toggle}>
+                      <span>{isOpen ? t('common.collapse') : t('common.expandMore')}</span>
+                      {isOpen ? <Up theme='outline' size={14} fill='currentColor' /> : <Down theme='outline' size={14} fill='currentColor' />}
+                    </button>
+                  )}
                 </div>
+
+                {isOpen && (
+                  <div className='px-10px py-10px'>
+                    <div className='flex flex-col gap-10px'>
+                      {batch.map((m) => (
+                        <div key={m.id} className='min-w-0'>
+                          {renderMessageCore(m)}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
         </div>
       );
@@ -233,7 +278,12 @@ const MessageList: React.FC<{
         if (i === firstTurnDiffIndex && turnDiffMessages.length > 0) {
           nodes.push(
             <div key={`file-changes-${message.id}`} className='chat-message-row message-item px-8px m-t-12px'>
-              <MessageFileChanges turnDiffChanges={turnDiffMessages} />
+              <div className='timeline-message-row w-full'>
+                <TimelineIndicator type='tool' isFirst={false} isLast={false} isActive={false} />
+                <div className='timeline-message-content'>
+                  <MessageFileChanges turnDiffChanges={turnDiffMessages} />
+                </div>
+              </div>
             </div>
           );
         }
@@ -266,7 +316,9 @@ const MessageList: React.FC<{
       );
 
       const body = renderMessageBodyWrapper ? renderMessageBodyWrapper(message, contentNode) : contentNode;
-      nodes.push(<React.Fragment key={message.id}>{renderMessageWrapper(message, body)}</React.Fragment>);
+      // Note: For timeline, we use nodes.length as a proxy for index since we're building the list incrementally
+      // This isn't perfect but works for most cases. A more accurate solution would require preprocessing.
+      nodes.push(<React.Fragment key={message.id}>{renderMessageWrapper(message, body, nodes.length, list.length)}</React.Fragment>);
       i += 1;
     }
 

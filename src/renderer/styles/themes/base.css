@@ -264,6 +264,143 @@ body,
   margin-right: auto;
 }
 
+/* ========================================
+   Timeline Components
+   ======================================== */
+
+/* Timeline Message Row - Container with left padding for timeline */
+.timeline-message-row {
+  position: relative;
+  padding-left: 36px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+/* Timeline Indicator - Left-side vertical timeline */
+.timeline-indicator {
+  position: absolute;
+  left: 8px;
+  top: 0;
+  width: 20px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Timeline Dot - Circle indicator */
+.timeline-dot {
+  position: relative;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--bg-4);
+  border: 2px solid var(--bg-3);
+  z-index: 2;
+  flex-shrink: 0;
+  margin-top: 8px;
+  transition: all 0.3s ease;
+}
+
+/* Dot Variants - Different colors for different message types */
+.timeline-dot--thinking {
+  background: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 20%, var(--bg-3));
+}
+
+.timeline-dot--task {
+  background: var(--brand);
+  border-color: color-mix(in srgb, var(--brand) 20%, var(--bg-3));
+}
+
+.timeline-dot--tool {
+  background: var(--warning);
+  border-color: color-mix(in srgb, var(--warning) 20%, var(--bg-3));
+}
+
+.timeline-dot--response {
+  background: var(--brand);
+  border-color: color-mix(in srgb, var(--brand) 20%, var(--bg-3));
+}
+
+.timeline-dot--user {
+  background: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 20%, var(--bg-3));
+}
+
+.timeline-dot--permission {
+  background: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 20%, var(--bg-3));
+}
+
+/* Connector Line - Vertical line connecting dots */
+.timeline-connector {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  background: var(--border-base);
+  z-index: 1;
+}
+
+.timeline-connector--top {
+  top: 0;
+  height: 8px;
+}
+
+.timeline-connector--bottom {
+  top: 18px;
+  bottom: 0;
+}
+
+/* Active Pulse Animation - For currently active/streaming messages */
+.timeline-dot--active {
+  animation: timeline-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes timeline-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 40%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+
+/* Timeline Label - Optional label next to dot */
+.timeline-label {
+  position: absolute;
+  left: 24px;
+  top: 4px;
+  white-space: nowrap;
+  font-size: 11px;
+  letter-spacing: 0.3px;
+}
+
+/* Timeline Message Content - Actual message content */
+.timeline-message-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Dark theme adjustments */
+[data-theme='dark'] .timeline-connector {
+  background: color-mix(in srgb, var(--border-base) 60%, transparent);
+}
+
+[data-theme='dark'] .timeline-dot {
+  border-color: var(--bg-2);
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .timeline-dot--active {
+    animation: none;
+  }
+}
+
 .chat-message-scroll {
   scroll-behavior: smooth;
 }
