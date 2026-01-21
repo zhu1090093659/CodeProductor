@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export type CommandSource = 'builtin' | 'custom' | 'cursor' | 'claude' | 'codex';
+export type CommandSource = 'builtin' | 'superpowers' | 'custom' | 'cursor' | 'claude' | 'codex';
 
 export interface SlashCommandItem {
   id: string;

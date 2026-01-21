@@ -804,15 +804,29 @@ const Guid: React.FC = () => {
     const isPreset = isPresetAgent;
     const presetAgentType = resolvePresetAgentType(agentInfo);
     // 加载 rules（skills 已迁移到 SkillManager）/ Load rules (skills migrated to SkillManager)
-    const { rules: presetRules } = await resolvePresetRulesAndSkills(agentInfo);
+    const [{ rules: presetRules }, superpowersConfig] = await Promise.all([resolvePresetRulesAndSkills(agentInfo), ConfigStorage.get('superpowers.config').catch(() => undefined)]);
     // 获取启用的 skills 列表 / Get enabled skills list
     const enabledSkills = resolveEnabledSkills(agentInfo);
 
     if (!currentModel) return;
 
+    const resolvePresetContext = async (backend: AcpBackend) => {
+      if (collabMode) return undefined;
+      const baseContext = isPreset ? presetRules : '';
+      const agentConfig = superpowersConfig?.enabledForAgents?.[backend];
+      const mode = superpowersConfig?.workflowMode;
+      let workflowContext = '';
+      if (agentConfig?.enabled && agentConfig?.autoInject && mode && mode !== 'passive') {
+        workflowContext = await ipcBridge.superpowers.getWorkflowContext.invoke({ mode });
+      }
+      const parts = [baseContext, workflowContext].map((value) => value?.trim()).filter(Boolean) as string[];
+      return parts.length ? parts.join('\n\n---\n\n') : undefined;
+    };
+
     if (selectedAgent === 'codex' || (isPreset && presetAgentType === 'codex')) {
       // Codex conversation type (including preset with codex agent type)
       const codexAgentInfo = agentInfo || findAgentByKey(selectedAgentKey);
+      const presetContext = await resolvePresetContext('codex');
 
       // 创建 Codex 会话并保存初始消息，由对话页负责发送
       try {
@@ -827,7 +841,7 @@ const Guid: React.FC = () => {
             projectId,
             // In collab mode, parent conversation should not have preset context
             // Child conversations will have their own preset contexts
-            presetContext: collabMode ? undefined : isPreset ? presetRules : undefined,
+            presetContext,
             // 启用的 skills 列表（通过 SkillManager 加载）/ Enabled skills list (loaded via SkillManager)
             enabledSkills: enabledSkills,
             // In collab mode, parent conversation should not have presetAssistantId
@@ -888,6 +902,7 @@ const Guid: React.FC = () => {
     }
 
     try {
+      const presetContext = await resolvePresetContext(acpBackend);
       const conversation = await ipcBridge.conversation.create.invoke({
         type: 'acp',
         name: input,
@@ -903,7 +918,7 @@ const Guid: React.FC = () => {
           customAgentId: acpAgentInfo?.customAgentId, // 自定义代理的 UUID / UUID for custom agents
           // In collab mode, parent conversation should not have preset context
           // Child conversations will have their own preset contexts
-          presetContext: collabMode ? undefined : isPreset ? presetRules : undefined,
+          presetContext,
           // 启用的 skills 列表（通过 SkillManager 加载）/ Enabled skills list (loaded via SkillManager)
           enabledSkills: enabledSkills,
           // In collab mode, parent conversation should not have presetAssistantId

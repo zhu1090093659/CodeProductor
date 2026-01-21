@@ -5,7 +5,7 @@
  */
 
 import { ipcBridge } from '@/common';
-import { ConfigStorage, type CustomCommandConfig } from '@/common/storage';
+import { ConfigStorage, type CustomCommandConfig, type SkillRepoConfig, type SuperpowersConfig } from '@/common/storage';
 import { dedupeCommands, getCommandNameFromPath, getNamespaceFromPath, parseCommandMarkdown, type CommandSource, type SlashCommandItem } from '@/renderer/utils/commandRegistry';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -44,7 +44,9 @@ const BUILTIN_COMMANDS: SlashCommandItem[] = [
   },
 ];
 
-const SOURCE_PRIORITY: CommandSource[] = ['builtin', 'custom', 'cursor', 'claude', 'codex'];
+const SOURCE_PRIORITY: CommandSource[] = ['builtin', 'superpowers', 'custom', 'cursor', 'claude', 'codex'];
+
+const SUPERPOWERS_REPO_FALLBACK_ID = 'superpowers-official';
 
 const listMarkdownFiles = async (dir: string, maxDepth = 6): Promise<string[]> => {
   try {
@@ -99,6 +101,24 @@ const buildCustomCommands = (items: CustomCommandConfig[]): SlashCommandItem[] =
   });
 };
 
+const resolveSuperpowersRepo = (repos: SkillRepoConfig[], config?: SuperpowersConfig | null) => {
+  const repoId = config?.repoId || SUPERPOWERS_REPO_FALLBACK_ID;
+  return repos.find((repo) => repo.id === repoId) || repos.find((repo) => repo.id === SUPERPOWERS_REPO_FALLBACK_ID);
+};
+
+const buildSuperpowersCommands = async (repo?: SkillRepoConfig | null): Promise<{ commands: SlashCommandItem[]; dir: string }> => {
+  if (!repo) return { commands: [], dir: '' };
+  try {
+    const result = await ipcBridge.application.superpowersCommandDir.invoke({ repoId: repo.id, subdir: repo.subdir });
+    const dir = result?.dir || '';
+    if (!dir) return { commands: [], dir: '' };
+    const commands = await buildExternalCommands('superpowers', dir, 'superpowers:');
+    return { commands, dir };
+  } catch {
+    return { commands: [], dir: '' };
+  }
+};
+
 const mergeCommands = (groups: Record<CommandSource, SlashCommandItem[]>): SlashCommandItem[] => {
   const ordered: SlashCommandItem[] = [];
   SOURCE_PRIORITY.forEach((source) => {
@@ -114,6 +134,7 @@ export const useSlashCommands = () => {
     cursor: { dir: '', count: 0 },
     claude: { dir: '', count: 0 },
     codex: { dir: '', count: 0 },
+    superpowers: { dir: '', count: 0 },
     builtin: { dir: '', count: BUILTIN_COMMANDS.length },
     custom: { dir: '', count: 0 },
   });
@@ -121,22 +142,22 @@ export const useSlashCommands = () => {
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      // Get command directories from main process
-      const dirs = await ipcBridge.application.commandDirs.invoke();
+      const [dirs, customConfigs, repos, superpowersConfig] = await Promise.all([ipcBridge.application.commandDirs.invoke(), ConfigStorage.get('commands.custom'), ConfigStorage.get('skills.repos'), ConfigStorage.get('superpowers.config')]);
       if (!dirs) {
         console.error('[useSlashCommands] commandDirs returned null');
         return;
       }
 
-      const customConfigs = ((await ConfigStorage.get('commands.custom')) || []) as CustomCommandConfig[];
-      const customCommands = buildCustomCommands(customConfigs);
-      const [cursorCmds, claudeCmds, codexCmds] = await Promise.all([buildExternalCommands('cursor', dirs.cursor), buildExternalCommands('claude', dirs.claude), buildExternalCommands('codex', dirs.codex, 'prompts:')]);
+      const customCommands = buildCustomCommands((customConfigs || []) as CustomCommandConfig[]);
+      const superpowersRepo = resolveSuperpowersRepo((repos || []) as SkillRepoConfig[], superpowersConfig as SuperpowersConfig | null);
+      const [cursorCmds, claudeCmds, codexCmds, superpowersResult] = await Promise.all([buildExternalCommands('cursor', dirs.cursor), buildExternalCommands('claude', dirs.claude), buildExternalCommands('codex', dirs.codex, 'prompts:'), buildSuperpowersCommands(superpowersRepo)]);
       const nextStats: Record<CommandSource, { dir: string; count: number }> = {
         builtin: { dir: '', count: BUILTIN_COMMANDS.length },
         custom: { dir: '', count: customCommands.length },
         cursor: { dir: dirs.cursor, count: cursorCmds.length },
         claude: { dir: dirs.claude, count: claudeCmds.length },
         codex: { dir: dirs.codex, count: codexCmds.length },
+        superpowers: { dir: superpowersResult.dir, count: superpowersResult.commands.length },
       };
       const groups: Record<CommandSource, SlashCommandItem[]> = {
         builtin: BUILTIN_COMMANDS,
@@ -144,6 +165,7 @@ export const useSlashCommands = () => {
         cursor: cursorCmds,
         claude: claudeCmds,
         codex: codexCmds,
+        superpowers: superpowersResult.commands,
       };
       setCommands(mergeCommands(groups));
       setExternalStats(nextStats);

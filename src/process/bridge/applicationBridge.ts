@@ -7,7 +7,7 @@
 import { app } from 'electron';
 import path from 'path';
 import { ipcBridge } from '../../common';
-import { getSystemDir, getHomeDir, ProcessEnv } from '../initStorage';
+import { getSystemDir, getHomeDir, getSkillsDir, ProcessEnv } from '../initStorage';
 import { copyDirectoryRecursively } from '../utils';
 import WorkerManage from '../WorkerManage';
 import { getZoomFactor, setZoomFactor } from '../utils/zoom';
@@ -50,6 +50,11 @@ export function initApplicationBridge(): void {
       claude: path.join(home, '.claude', 'commands'),
       codex: path.join(home, '.codex', 'prompts'),
     });
+  });
+
+  ipcBridge.application.superpowersCommandDir.provider(({ repoId, subdir }) => {
+    const repoRoot = subdir ? path.join(getSkillsDir(), 'remote', repoId, subdir) : path.join(getSkillsDir(), 'remote', repoId);
+    return Promise.resolve({ dir: path.join(repoRoot, 'commands') });
   });
 
   ipcBridge.application.openDevTools.provider(() => {

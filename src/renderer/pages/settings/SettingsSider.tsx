@@ -1,5 +1,5 @@
 import FlexFullContainer from '@/renderer/components/FlexFullContainer';
-import { Computer, Info, LinkCloud, System, Toolkit, Robot, Magic, Write } from '@icon-park/react';
+import { Computer, Info, LinkCloud, System, Toolkit, Robot, Magic, Write, Lightning } from '@icon-park/react';
 import classNames from 'classnames';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -37,6 +37,11 @@ const SettingsSider: React.FC<{ collapsed?: boolean }> = ({ collapsed = false })
         label: t('settings.commands', { defaultValue: 'Commands' }),
         icon: <Write />,
         path: 'commands',
+      },
+      {
+        label: t('settings.superpowers', { defaultValue: 'Superpowers' }),
+        icon: <Lightning />,
+        path: 'superpowers',
       },
       {
         label: t('settings.display'),

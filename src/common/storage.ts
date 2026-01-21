@@ -37,6 +37,7 @@ export interface IConfigStorageRefer {
   'cli.providers'?: CliProvidersStorage;
   'skills.repos'?: SkillRepoConfig[];
   'skills.enabledByAgent'?: Record<AcpBackend, string[]>;
+  'superpowers.config'?: SuperpowersConfig;
   'commands.custom'?: CustomCommandConfig[];
   'project.list'?: ProjectInfo[];
   'project.activeId'?: string;
@@ -108,6 +109,22 @@ export interface SkillRepoConfig {
   branch?: string;
   subdir?: string;
   lastSync?: number;
+}
+
+export type SuperpowersWorkflowMode = 'passive' | 'guided' | 'enforced';
+
+export interface SuperpowersConfig {
+  repoId: string;
+  workflowMode: SuperpowersWorkflowMode;
+  enabledForAgents?: {
+    [agentKey in AcpBackend]?: {
+      enabled: boolean;
+      autoInject: boolean;
+    };
+  };
+  stats?: {
+    lastWorkflowUsed?: string;
+  };
 }
 
 export interface IEnvStorageRefer {

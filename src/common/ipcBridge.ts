@@ -8,7 +8,7 @@ import { bridge } from '@office-ai/platform';
 import type { OpenDialogOptions } from 'electron';
 import type { McpSource } from '../process/services/mcpServices/McpProtocol';
 import type { AcpBackend } from '../types/acpTypes';
-import type { IMcpServer, IProvider, TChatConversation, TProviderWithModel, SkillRepoConfig } from './storage';
+import type { IMcpServer, IProvider, TChatConversation, TProviderWithModel, SkillRepoConfig, SuperpowersWorkflowMode } from './storage';
 import type { CliProviderApplyPayload } from './types/provider';
 import type { PreviewHistoryTarget, PreviewSnapshotInfo } from './types/preview';
 import type { ProtocolDetectionRequest, ProtocolDetectionResponse } from './utils/protocolDetector';
@@ -44,6 +44,7 @@ export const application = {
   systemInfo: bridge.buildProvider<{ cacheDir: string; workDir: string; homeDir: string; platform: string; arch: string }, void>('system.info'), // 获取系统信息
   homeDir: bridge.buildProvider<{ homeDir: string }, void>('system.home-dir'), // 获取用户目录
   commandDirs: bridge.buildProvider<{ cursor: string; claude: string; codex: string }, void>('system.command-dirs'), // 获取命令目录
+  superpowersCommandDir: bridge.buildProvider<{ dir: string }, { repoId: string; subdir?: string }>('system.superpowers-command-dir'), // 获取 Superpowers 命令目录
   updateSystemInfo: bridge.buildProvider<IBridgeResponse, { cacheDir: string; workDir: string }>('system.update-info'), // 更新系统信息
   getZoomFactor: bridge.buildProvider<number, void>('app.get-zoom-factor'),
   setZoomFactor: bridge.buildProvider<number, { factor: number }>('app.set-zoom-factor'),
@@ -163,6 +164,10 @@ export const provider = {
 export const skills = {
   syncRepos: bridge.buildProvider<IBridgeResponse<{ repos: SkillRepoConfig[]; errors?: Array<{ id: string; error: string }> }>, { repos: SkillRepoConfig[] }>('skills.sync-repos'),
   copyToProject: bridge.buildProvider<IBridgeResponse<CopySkillsToProjectResult>, CopySkillsToProjectParams>('skills.copy-to-project'),
+};
+
+export const superpowers = {
+  getWorkflowContext: bridge.buildProvider<string, { mode: SuperpowersWorkflowMode }>('superpowers.get-workflow-context'),
 };
 
 // Codex 对话相关接口 - 复用统一的conversation接口

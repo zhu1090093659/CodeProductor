@@ -43,7 +43,7 @@ const CommandSettings: React.FC = () => {
   }, [loadCustomCommands]);
 
   const externalCommands = useMemo(() => {
-    return commands.filter((command) => ['cursor', 'claude', 'codex'].includes(command.source));
+    return commands.filter((command) => ['cursor', 'claude', 'codex', 'superpowers'].includes(command.source));
   }, [commands]);
 
   const handleCreate = useCallback(() => {
@@ -169,6 +169,9 @@ const CommandSettings: React.FC = () => {
             </div>
             <div>
               Codex: {externalStats.codex.count} | {externalStats.codex.dir || '-'}
+            </div>
+            <div>
+              Superpowers: {externalStats.superpowers.count} | {externalStats.superpowers.dir || '-'}
             </div>
           </div>
           <Divider className='my-12px' />

@@ -12,6 +12,7 @@ import CliProviderSettings from './pages/settings/CliProviderSettings';
 import SkillSettings from './pages/settings/SkillSettings';
 import SystemSettings from './pages/settings/SystemSettings';
 import ToolsSettings from './pages/settings/ToolsSettings';
+import SuperpowersSettings from './pages/settings/SuperpowersSettings';
 import CommandSettings from './pages/settings/CommandSettings';
 import LoginPage from './pages/login';
 import ComponentsShowcase from './pages/test/ComponentsShowcase';
@@ -50,6 +51,7 @@ const PanelRoute: React.FC<{ layout: React.ReactElement }> = ({ layout }) => {
           <Route path='/settings/tools' element={<ToolsSettings />} />
           <Route path='/settings/skills' element={<SkillSettings />} />
           <Route path='/settings/commands' element={<CommandSettings />} />
+          <Route path='/settings/superpowers' element={<SuperpowersSettings />} />
           <Route path='/settings' element={<Navigate to='/settings/model' replace />} />
           <Route path='/test/components' element={<ComponentsShowcase />} />
         </Route>
