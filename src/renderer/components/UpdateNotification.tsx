@@ -5,7 +5,7 @@
  */
 
 import { Modal, Progress, Button, Space, Typography, Divider } from '@arco-design/web-react';
-import { IconDownload, IconRefresh, IconClose } from '@arco-design/web-react/icon';
+import { IconDownload, IconRefresh } from '@arco-design/web-react/icon';
 import React, { useEffect, useState } from 'react';
 import { ipcBridge } from '@/common';
 

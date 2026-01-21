@@ -371,7 +371,7 @@ export class ToolRegistry {
   /**
    * 获取默认工具
    */
-  private getDefaultTool(eventType: CodexAgentEventType): ToolDefinition {
+  private getDefaultTool(_eventType: CodexAgentEventType): ToolDefinition {
     return {
       id: 'unknown',
       name: 'Unknown',

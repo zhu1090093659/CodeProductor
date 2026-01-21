@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { app, BrowserWindow } from 'electron';
+import { app } from 'electron';
 import type { ProgressInfo, UpdateDownloadedEvent, UpdateInfo } from 'electron-updater';
 import { ipcBridge } from '../../common';
 import { autoUpdater, checkForUpdates, downloadUpdate, getUpdateStatus, quitAndInstall } from '../autoUpdater';

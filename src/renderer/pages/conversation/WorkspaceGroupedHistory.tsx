@@ -13,7 +13,7 @@ import { getWorkspaceDisplayName } from '@/renderer/utils/workspace';
 import { getWorkspaceUpdateTime } from '@/renderer/utils/workspaceHistory';
 import { useProjects } from '@/renderer/hooks/useProjects';
 import { resolveProjectIdForConversation, setActiveProjectId } from '@/renderer/utils/projectService';
-import { Empty, Popconfirm, Input, Tooltip } from '@arco-design/web-react';
+import { Popconfirm, Input, Tooltip } from '@arco-design/web-react';
 import { DeleteOne, MessageOne, EditOne } from '@icon-park/react';
 import classNames from 'classnames';
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';

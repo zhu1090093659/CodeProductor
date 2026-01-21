@@ -63,7 +63,7 @@ function CodeBlock(props: any) {
     });
 
     return () => observer.disconnect();
-  }, []);
+  }, [setCurrentTheme]);
 
   return useMemo(() => {
     const { children, className, node: _node, hiddenCodeCopyButton: _hiddenCodeCopyButton, codeStyle: _codeStyle, ...rest } = props;

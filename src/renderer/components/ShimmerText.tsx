@@ -5,7 +5,6 @@
  */
 
 import React from 'react';
-import classNames from 'classnames';
 
 interface ShimmerTextProps {
   children: React.ReactNode;

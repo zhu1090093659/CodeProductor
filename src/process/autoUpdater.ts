@@ -6,7 +6,6 @@
 
 import { app } from 'electron';
 import { autoUpdater, type UpdateDownloadedEvent, type UpdateInfo } from 'electron-updater';
-import * as path from 'path';
 
 /**
  * Auto-updater configuration and utilities

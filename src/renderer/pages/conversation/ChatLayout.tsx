@@ -1,4 +1,3 @@
-import { ConfigStorage } from '@/common/storage';
 import { STORAGE_KEYS } from '@/common/storageKeys';
 import type { IMessageAgentStatus } from '@/common/chatLib';
 import FlexFullContainer from '@/renderer/components/FlexFullContainer';
@@ -11,7 +10,6 @@ import { Badge, Layout as ArcoLayout } from '@arco-design/web-react';
 import { ExpandLeft, ExpandRight, Robot } from '@icon-park/react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import useSWR from 'swr';
 
 import ClaudeLogo from '@/renderer/assets/logos/claude.svg';
 import CodexLogo from '@/renderer/assets/logos/codex.svg';

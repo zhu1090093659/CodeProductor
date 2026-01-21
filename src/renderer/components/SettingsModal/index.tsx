@@ -7,7 +7,7 @@
 import AionModal from '@/renderer/components/base/AionModal';
 import AionScrollArea from '@/renderer/components/base/AionScrollArea';
 import { iconColors } from '@/renderer/theme/colors';
-import { Computer, Info, LinkCloud, Toolkit, Robot } from '@icon-park/react';
+import { Computer, Info, LinkCloud, Toolkit } from '@icon-park/react';
 import { Tabs } from '@arco-design/web-react';
 import classNames from 'classnames';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';

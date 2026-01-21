@@ -83,7 +83,7 @@ export class AcpConnection {
   public onEndTurn: () => void = () => {}; // Handler for end_turn messages
   public onFileOperation: (operation: { method: string; path: string; content?: string; sessionId: string }) => void = () => {};
 
-  async connect(backend: AcpBackend, cliPath?: string, workingDir: string = process.cwd(), acpArgs?: string[], customEnv?: Record<string, string>): Promise<void> {
+  async connect(backend: AcpBackend, cliPath?: string, workingDir: string = process.cwd(), _acpArgs?: string[], _customEnv?: Record<string, string>): Promise<void> {
     if (this.child) {
       this.disconnect();
     }

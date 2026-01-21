@@ -199,7 +199,7 @@ const AcpSendBox: React.FC<{
   optimisticUserMessage?: boolean;
 }> = ({ conversation_id, backend, mentionOptions, onMentionSelect, optimisticUserMessage }) => {
   const [workspacePath, setWorkspacePath] = useState('');
-  const { running, acpStatus, aiProcessing, setAiProcessing, registerOptimisticMessageId, clearOptimisticMessageId } = useAcpMessage(conversation_id, {
+  const { running, acpStatus, setAiProcessing, registerOptimisticMessageId, clearOptimisticMessageId } = useAcpMessage(conversation_id, {
     optimisticUserMessage,
   });
   const { t } = useTranslation();

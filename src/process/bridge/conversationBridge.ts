@@ -18,7 +18,7 @@ import { migrateConversationToDatabase } from './migrationUtils';
 
 export function initConversationBridge(): void {
   ipcBridge.conversation.create.provider(async (params): Promise<TChatConversation> => {
-    const { type, extra, name, model, id } = params;
+    const { type, name, id } = params;
     const buildConversation = () => {
       if (type === 'acp') return createAcpAgent(params);
       if (type === 'codex') return createCodexAgent(params);
