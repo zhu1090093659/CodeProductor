@@ -414,6 +414,8 @@ jobs:
             out/*.AppImage
             out/CodeConductor-*-win32-*.zip
             out/CodeConductor-*-mac-*.zip
+            out/latest*.yml
+            out/*.blockmap
           if-no-files-found: warn
           retention-days: 7
 
@@ -619,7 +621,7 @@ jobs:
             build-artifacts/**/latest*.yml
             build-artifacts/**/*.blockmap
           generate_release_notes: true
-          draft: true
+          draft: false
           prerelease: ${{ needs.create-tag.outputs.is_dev == 'true' || contains(steps.version.outputs.tag_name, 'beta') || contains(steps.version.outputs.tag_name, 'alpha') || contains(steps.version.outputs.tag_name, 'rc') }}
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}

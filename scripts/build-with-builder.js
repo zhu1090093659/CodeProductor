@@ -154,8 +154,11 @@ try {
 
   // 5. 运行 electron-builder 生成分发包（DMG/ZIP/EXE等）
   // Run electron-builder to create distributables (DMG/ZIP/EXE, etc.)
-  const isRelease = process.env.GITHUB_REF && process.env.GITHUB_REF.startsWith('refs/tags/v');
-  const publishArg = isRelease ? '' : '--publish=never';
+  // In CI, use --publish=always to generate latest.yml for auto-updates,
+  // but the actual GitHub release is handled by the workflow, not electron-builder.
+  // Locally, use --publish=never to skip publishing.
+  const isCI = process.env.CI === 'true';
+  const publishArg = isCI ? '--publish=always' : '--publish=never';
 
   // 根据模式添加架构标志
   // Add arch flags based on mode
