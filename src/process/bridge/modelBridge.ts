@@ -204,7 +204,7 @@ const fetchOpenAICompatibleModels = async (baseUrl: string, apiKey: string): Pro
         });
 
         if (!response.ok) continue;
-        const data = await response.json().catch(() => null);
+        const data = await response.json().catch((): any => null);
         const models = extractModelIdsFromResponse(data);
         if (models.length > 0) {
           return models;

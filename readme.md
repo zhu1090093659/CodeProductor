@@ -54,6 +54,15 @@
 
 ## Changelog
 
+### 1.7.5
+
+- Integrated popup-mcp as a built-in tool for interactive prompts and confirmations.
+- Added internationalization support with multiple language files.
+- Added CLI provider configuration UI and backend service for Claude and Codex.
+- Added storage utilities and a thought display component.
+- Fixed default value for ANTHROPIC_MODEL in CLI provider settings.
+- Fixed duplicate model setting calls in Guid component.
+
 ### 1.7.3
 
 - Enhance ACP adapter to better convert agent thoughts into displayable chat messages.
