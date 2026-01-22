@@ -75,6 +75,18 @@
   --shadow-lg: 0 16px 32px rgba(16, 24, 40, 0.18);
   --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.7);
   --ring-focus: 0 0 0 3px rgba(47, 91, 255, 0.18);
+
+  /* Sider variables - Light Mode */
+  --sider-bg: linear-gradient(180deg, #e8ecf4 0%, #dfe4ee 100%);
+  --sider-header-bg: linear-gradient(180deg, #f0f3f8 0%, #eaeff5 100%);
+  --sider-border: rgba(167, 180, 200, 0.35);
+  --sider-item-hover: rgba(255, 255, 255, 0.65);
+  --sider-item-active: rgba(255, 255, 255, 0.85);
+  --sider-item-active-border: rgba(107, 119, 166, 0.25);
+  --sider-scrollbar-thumb: rgba(107, 119, 166, 0.18);
+  --sider-scrollbar-thumb-hover: rgba(107, 119, 166, 0.35);
+  --sider-shadow: 2px 0 12px rgba(16, 24, 40, 0.06);
+  --sider-header-shadow: 0 2px 8px rgba(16, 24, 40, 0.04);
 }
 
 /* Dark Mode */
@@ -151,4 +163,16 @@
   --shadow-lg: 0 16px 32px rgba(0, 0, 0, 0.6);
   --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   --ring-focus: 0 0 0 3px rgba(109, 132, 255, 0.28);
+
+  /* Sider variables - Dark Mode */
+  --sider-bg: linear-gradient(180deg, #171c28 0%, #141924 100%);
+  --sider-header-bg: linear-gradient(180deg, #1e2534 0%, #1a2130 100%);
+  --sider-border: rgba(60, 75, 100, 0.4);
+  --sider-item-hover: rgba(255, 255, 255, 0.06);
+  --sider-item-active: rgba(255, 255, 255, 0.1);
+  --sider-item-active-border: rgba(154, 166, 200, 0.2);
+  --sider-scrollbar-thumb: rgba(154, 166, 200, 0.15);
+  --sider-scrollbar-thumb-hover: rgba(154, 166, 200, 0.3);
+  --sider-shadow: 2px 0 16px rgba(0, 0, 0, 0.35);
+  --sider-header-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
 }

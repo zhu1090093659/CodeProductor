@@ -353,8 +353,8 @@ const WorkspaceGroupedHistory: React.FC<{ onSessionClick?: () => void; collapsed
         <Tooltip key={conversation.id} disabled={!collapsed} content={conversation.name || t('conversation.welcome.newConversation')} position='right'>
           <div
             id={'c-' + conversation.id}
-            className={classNames('chat-history__item hover:bg-hover px-12px py-8px rd-8px flex justify-start items-center group cursor-pointer relative overflow-hidden shrink-0 conversation-item [&.conversation-item+&.conversation-item]:mt-2px min-w-0', {
-              '!bg-active': isSelected,
+            className={classNames('chat-history__item px-12px py-8px rd-10px flex justify-start items-center group cursor-pointer relative overflow-hidden shrink-0 conversation-item [&.conversation-item+&.conversation-item]:mt-2px min-w-0', {
+              'chat-history__item--active': isSelected,
             })}
             onClick={() => handleConversationClick(conversation)}
           >
@@ -364,7 +364,9 @@ const WorkspaceGroupedHistory: React.FC<{ onSessionClick?: () => void; collapsed
               <div
                 className={classNames('absolute right-0px top-0px h-full w-70px items-center justify-end hidden group-hover:flex !collapsed-hidden pr-12px')}
                 style={{
-                  backgroundImage: isSelected ? `linear-gradient(to right, transparent, var(--aou-2) 50%)` : `linear-gradient(to right, transparent, var(--aou-1) 50%)`,
+                  backgroundImage: isSelected
+                    ? `linear-gradient(to right, transparent, var(--sider-item-active) 40%)`
+                    : `linear-gradient(to right, transparent, var(--sider-item-hover) 40%)`,
                 }}
                 onClick={(event) => {
                   event.stopPropagation();

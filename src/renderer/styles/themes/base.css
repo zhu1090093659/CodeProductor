@@ -196,14 +196,27 @@ body,
 
 /* Premium depth surfaces / 高级质感表层 */
 .layout-sider {
-  background-color: var(--bg-2);
-  border-right: 1px solid var(--border-base);
-  box-shadow: var(--shadow-sm);
+  background: var(--sider-bg);
+  border-right: 1px solid var(--sider-border);
+  box-shadow: var(--sider-shadow);
 }
 
 .layout-sider-header {
-  background-color: var(--bg-1);
-  box-shadow: inset 0 -1px 0 var(--border-base);
+  background: var(--sider-header-bg);
+  box-shadow: var(--sider-header-shadow);
+  border-bottom: 1px solid var(--sider-border);
+}
+
+.layout-sider ::-webkit-scrollbar {
+  width: 5px;
+}
+
+.layout-sider:hover ::-webkit-scrollbar-thumb {
+  background: var(--sider-scrollbar-thumb);
+}
+
+.layout-sider ::-webkit-scrollbar-thumb:hover {
+  background: var(--sider-scrollbar-thumb-hover);
 }
 
 .chat-layout-header {
@@ -547,13 +560,26 @@ body,
 
 .chat-history__item:hover,
 .settings-sider__item:hover {
-  border-color: var(--border-light);
-  box-shadow: var(--shadow-sm);
+  background-color: var(--sider-item-hover);
+  border-color: var(--sider-item-active-border);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 
+.chat-history__item--active,
 .settings-sider__item--active {
-  border-color: var(--border-base);
-  box-shadow: var(--shadow-sm);
+  background-color: var(--sider-item-active) !important;
+  border-color: var(--sider-item-active-border) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+[data-theme='dark'] .chat-history__item:hover,
+[data-theme='dark'] .settings-sider__item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme='dark'] .chat-history__item--active,
+[data-theme='dark'] .settings-sider__item--active {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 /* Collab merged view */

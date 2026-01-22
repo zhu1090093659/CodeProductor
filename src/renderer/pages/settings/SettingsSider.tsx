@@ -67,8 +67,7 @@ const SettingsSider: React.FC<{ collapsed?: boolean }> = ({ collapsed = false })
         return (
           <Tooltip key={item.path} disabled={!collapsed} content={item.label} position='right'>
             <div
-              className={classNames('settings-sider__item hover:bg-aou-1 px-12px py-8px rd-8px flex justify-start items-center group cursor-pointer relative overflow-hidden group shrink-0 conversation-item [&.conversation-item+&.conversation-item]:mt-2px', {
-                '!bg-aou-2 ': isSelected,
+              className={classNames('settings-sider__item px-12px py-8px rd-10px flex justify-start items-center group cursor-pointer relative overflow-hidden group shrink-0 conversation-item [&.conversation-item+&.conversation-item]:mt-2px', {
                 'settings-sider__item--active': isSelected,
               })}
               onClick={() => {
