@@ -53,6 +53,7 @@ const CodexSendBox: React.FC<{
   const [aiProcessing, setAiProcessing] = useState(false); // New loading state for AI response
   const [codexStatus, setCodexStatus] = useState<string | null>(null);
   const thoughtRef = React.useRef<ThoughtData>({ subject: '', description: '' });
+  const thoughtIdRef = React.useRef<string | null>(null);
 
   const { content, setContent, atPath, setAtPath, uploadFile, setUploadFile } = (function useDraft() {
     const { data, mutate } = useCodexSendBoxDraft(conversation_id);
@@ -82,6 +83,7 @@ const CodexSendBox: React.FC<{
     setAiProcessing(false);
     setCodexStatus(null);
     thoughtRef.current = { subject: '', description: '' };
+    thoughtIdRef.current = null;
     emitter.emit('conversation.thought.update', {
       conversationId: conversation_id,
       thought: { subject: '', description: '' },
@@ -111,10 +113,12 @@ const CodexSendBox: React.FC<{
       switch (message.type) {
         case 'thought':
           thoughtRef.current = (message.data as ThoughtData) || { subject: 'Thinking', description: '' };
+          thoughtIdRef.current = message.msg_id || thoughtIdRef.current || uuid();
           emitter.emit('conversation.thought.update', {
             conversationId: conversation_id,
             thought: thoughtRef.current,
             running: true,
+            thoughtId: thoughtIdRef.current,
           });
           break;
         case 'finish':
@@ -123,7 +127,9 @@ const CodexSendBox: React.FC<{
             conversationId: conversation_id,
             thought: thoughtRef.current,
             running: false,
+            thoughtId: thoughtIdRef.current,
           });
+          thoughtIdRef.current = null;
           break;
         case 'content':
         case 'codex_permission': {

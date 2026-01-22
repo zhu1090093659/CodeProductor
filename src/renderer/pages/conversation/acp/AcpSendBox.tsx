@@ -36,6 +36,7 @@ const useAcpMessage = (conversation_id: string, options?: { optimisticUserMessag
   const addOrUpdateMessage = useAddOrUpdateMessage();
   const [running, setRunning] = useState(false);
   const thoughtRef = useRef<ThoughtData>({ subject: '', description: '' });
+  const thoughtIdRef = useRef<string | null>(null);
   const [acpStatus, setAcpStatus] = useState<'connecting' | 'connected' | 'authenticated' | 'session_active' | 'disconnected' | 'error' | null>(null);
   const [aiProcessing, setAiProcessing] = useState(false); // New loading state for AI response
   const optimisticUserMessage = options?.optimisticUserMessage === true;
@@ -69,14 +70,17 @@ const useAcpMessage = (conversation_id: string, options?: { optimisticUserMessag
       switch (message.type) {
         case 'thought':
           thoughtRef.current = (message.data as ThoughtData) || { subject: 'Thinking', description: '' };
+          thoughtIdRef.current = message.msg_id || thoughtIdRef.current || uuid();
           emitter.emit('conversation.thought.update', {
             conversationId: conversation_id,
             thought: thoughtRef.current,
             running: true,
+            thoughtId: thoughtIdRef.current,
           });
           break;
         case 'start':
           setRunning(true);
+          thoughtIdRef.current = null;
           emitter.emit('conversation.thought.update', {
             conversationId: conversation_id,
             thought: { subject: '', description: '' },
@@ -90,8 +94,10 @@ const useAcpMessage = (conversation_id: string, options?: { optimisticUserMessag
             conversationId: conversation_id,
             thought: thoughtRef.current,
             running: false,
+            thoughtId: thoughtIdRef.current,
           });
           thoughtRef.current = { subject: '', description: '' };
+          thoughtIdRef.current = null;
           break;
         case 'content':
           addOrUpdateMessage(transformedMessage);
@@ -125,7 +131,9 @@ const useAcpMessage = (conversation_id: string, options?: { optimisticUserMessag
             conversationId: conversation_id,
             thought: { subject: '', description: '' },
             running: false,
+            thoughtId: thoughtIdRef.current,
           });
+          thoughtIdRef.current = null;
           addOrUpdateMessage(transformedMessage);
           break;
         default:
@@ -144,6 +152,7 @@ const useAcpMessage = (conversation_id: string, options?: { optimisticUserMessag
   useEffect(() => {
     setRunning(false);
     thoughtRef.current = { subject: '', description: '' };
+    thoughtIdRef.current = null;
     setAcpStatus(null);
     setAiProcessing(false);
     emitter.emit('conversation.thought.update', {

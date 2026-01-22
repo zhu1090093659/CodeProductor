@@ -6,6 +6,7 @@
 
 import { ipcBridge } from '@/common';
 import type { CodexToolCallUpdate, TMessage } from '@/common/chatLib';
+import { uuid } from '@/common/utils';
 import { iconColors } from '@/renderer/theme/colors';
 import { Image } from '@arco-design/web-react';
 import { Down, Up } from '@icon-park/react';
@@ -29,6 +30,9 @@ import MessageToolGroup from './MessageToolGroup';
 import MessageText from './MessagetText';
 
 type TurnDiffContent = Extract<CodexToolCallUpdate, { subtype: 'turn_diff' }>;
+type ThoughtEntry = { id: string; thought: ThoughtData; running: boolean; anchorId: string | null };
+
+const PENDING_THOUGHT_ID = '__pending__';
 
 // 图片预览上下文 Image preview context
 export const ImagePreviewContext = createContext<{ inPreviewGroup: boolean }>({ inPreviewGroup: false });
@@ -47,58 +51,35 @@ const MessageList: React.FC<{
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
   const [toolBatchOpenMap, setToolBatchOpenMap] = useState<Record<string, boolean>>({});
-  const [thought, setThought] = useState<ThoughtData>({ subject: '', description: '' });
-  const [thoughtRunning, setThoughtRunning] = useState(false);
+  const [thoughtEntries, setThoughtEntries] = useState<ThoughtEntry[]>([]);
   const previousListLengthRef = useRef(list.length);
+  const listRef = useRef(list);
   const { t } = useTranslation();
-  const shouldShowThought = thoughtRunning || Boolean(thought?.subject) || Boolean(thought?.description);
+  const shouldShowThought = thoughtEntries.length > 0;
+  const thoughtRunning = thoughtEntries.some((entry) => entry.running);
 
-  const thoughtNode = useMemo(() => {
+  const renderThoughtNodes = useMemo(() => {
     if (!conversationId) return null;
     if (!shouldShowThought) return null;
-    return (
-      <div key='thought-display' className='chat-message-row message-item px-8px m-t-12px'>
-        <div className='timeline-message-row w-full'>
-          <TimelineIndicator type='thinking' isFirst={false} isLast={false} isActive={thoughtRunning} />
-          <div className='timeline-message-content'>
-            <ThoughtDisplay
-              thought={thought}
-              running={thoughtRunning}
-              style='compact'
-              onStop={() => {
-                return ipcBridge.conversation.stop.invoke({ conversation_id: conversationId }).then(() => {});
-              }}
-            />
+    return (entries: ThoughtEntry[]) =>
+      entries.map((entry) => (
+        <div key={`thought-${entry.id}`} className='chat-message-row message-item px-8px m-t-12px'>
+          <div className='timeline-message-row w-full'>
+            <TimelineIndicator type='thinking' isFirst={false} isLast={false} isActive={entry.running} />
+            <div className='timeline-message-content'>
+              <ThoughtDisplay
+                thought={entry.thought}
+                running={entry.running}
+                style='compact'
+                onStop={() => {
+                  return ipcBridge.conversation.stop.invoke({ conversation_id: conversationId }).then(() => {});
+                }}
+              />
+            </div>
           </div>
         </div>
-      </div>
-    );
-  }, [conversationId, shouldShowThought, thought, thoughtRunning]);
-
-  const thoughtInsertBeforeId = useMemo((): string | null => {
-    if (!shouldShowThought) return null;
-
-    // Find the last user message (position === 'right')
-    let lastUserMessageIndex = -1;
-    for (let i = list.length - 1; i >= 0; i -= 1) {
-      if (list[i].position === 'right') {
-        lastUserMessageIndex = i;
-        break;
-      }
-    }
-
-    // Find the first AI text message AFTER the last user message
-    // This ensures thinking box appears before the response to the current question
-    for (let i = lastUserMessageIndex + 1; i < list.length; i += 1) {
-      const message = list[i];
-      if (message.position === 'left' && message.type === 'text') {
-        return message.id;
-      }
-    }
-
-    // No AI text message after the last user message, append at end
-    return null;
-  }, [list, shouldShowThought]);
+      ));
+  }, [conversationId, shouldShowThought]);
 
   /**
    * Map message type to timeline type
@@ -207,7 +188,19 @@ const MessageList: React.FC<{
 
   const renderListNodes = useMemo(() => {
     const nodes: React.ReactNode[] = [];
-    let thoughtInserted = false;
+    const thoughtBucket = new Map<string | null, ThoughtEntry[]>();
+
+    if (shouldShowThought) {
+      for (const entry of thoughtEntries) {
+        const key = entry.anchorId ?? null;
+        const existing = thoughtBucket.get(key);
+        if (existing) {
+          existing.push(entry);
+        } else {
+          thoughtBucket.set(key, [entry]);
+        }
+      }
+    }
 
     const renderToolBatch = (batch: TMessage[]) => {
       const batchKey = `${batch[0]?.id || 'unknown'}-${batch[batch.length - 1]?.id || 'unknown'}`;
@@ -260,12 +253,13 @@ const MessageList: React.FC<{
     };
 
     let i = 0;
+    const headThoughts = thoughtBucket.get(null);
+    if (headThoughts && renderThoughtNodes) {
+      nodes.push(...renderThoughtNodes(headThoughts));
+      thoughtBucket.delete(null);
+    }
     while (i < list.length) {
       const message = list[i];
-      if (!thoughtInserted && thoughtNode && thoughtInsertBeforeId && message.id === thoughtInsertBeforeId) {
-        nodes.push(thoughtNode);
-        thoughtInserted = true;
-      }
 
       // Hide agent status messages in the message stream (status is shown in header instead).
       if (message.type === 'agent_status') {
@@ -295,14 +289,23 @@ const MessageList: React.FC<{
       if (isToolMessage(message)) {
         const batch: TMessage[] = [];
         let j = i;
+        let stopAtId: string | null = null;
         while (j < list.length) {
           const m = list[j];
           if (isTurnDiffMessage(m)) break;
           if (!isToolMessage(m)) break;
           batch.push(m);
+          stopAtId = m.id;
           j += 1;
+          if (thoughtBucket.has(stopAtId)) {
+            break;
+          }
         }
         nodes.push(renderToolBatch(batch));
+        if (stopAtId && thoughtBucket.has(stopAtId) && renderThoughtNodes) {
+          nodes.push(...renderThoughtNodes(thoughtBucket.get(stopAtId) || []));
+          thoughtBucket.delete(stopAtId);
+        }
         i = j;
         continue;
       }
@@ -319,15 +322,21 @@ const MessageList: React.FC<{
       // Note: For timeline, we use nodes.length as a proxy for index since we're building the list incrementally
       // This isn't perfect but works for most cases. A more accurate solution would require preprocessing.
       nodes.push(<React.Fragment key={message.id}>{renderMessageWrapper(message, body, nodes.length, list.length)}</React.Fragment>);
+      if (thoughtBucket.has(message.id) && renderThoughtNodes) {
+        nodes.push(...renderThoughtNodes(thoughtBucket.get(message.id) || []));
+        thoughtBucket.delete(message.id);
+      }
       i += 1;
     }
 
-    if (!thoughtInserted && thoughtNode) {
-      nodes.push(thoughtNode);
+    if (thoughtBucket.size > 0 && renderThoughtNodes) {
+      for (const entries of thoughtBucket.values()) {
+        nodes.push(...renderThoughtNodes(entries));
+      }
     }
 
     return nodes;
-  }, [firstTurnDiffIndex, isToolMessage, isTurnDiffMessage, list, renderMessageCore, renderMessageHeader, t, thoughtInsertBeforeId, thoughtNode, toolBatchOpenMap, turnDiffMessages]);
+  }, [firstTurnDiffIndex, isToolMessage, isTurnDiffMessage, list, renderMessageCore, renderMessageHeader, renderThoughtNodes, shouldShowThought, t, thoughtEntries, toolBatchOpenMap, turnDiffMessages]);
 
   // 检查是否在底部（允许一定的误差范围）
   const isAtBottom = () => {
@@ -398,8 +407,66 @@ const MessageList: React.FC<{
     (payload) => {
       if (!conversationId) return;
       if (payload.conversationId !== conversationId) return;
-      setThought(payload.thought);
-      setThoughtRunning(payload.running);
+      const thoughtId = payload.thoughtId ?? null;
+      const hasContent = Boolean(payload.thought?.subject) || Boolean(payload.thought?.description);
+      const anchorId = listRef.current.length ? (listRef.current[listRef.current.length - 1]?.id ?? null) : null;
+
+      setThoughtEntries((prev) => {
+        const pendingIndex = prev.findIndex((item) => item.id === PENDING_THOUGHT_ID);
+
+        if (thoughtId) {
+          const next = prev.map((item) => (item.running ? { ...item, running: false } : item));
+          const index = next.findIndex((item) => item.id === thoughtId);
+          const entry = {
+            id: thoughtId,
+            thought: payload.thought,
+            running: payload.running,
+            anchorId: pendingIndex >= 0 ? next[pendingIndex].anchorId : anchorId,
+          };
+          if (index >= 0) {
+            next[index] = { ...next[index], thought: entry.thought, running: entry.running };
+            return next;
+          }
+          if (pendingIndex >= 0) {
+            next[pendingIndex] = entry;
+            return next;
+          }
+          next.push(entry);
+          return next;
+        }
+
+        if (hasContent) {
+          return prev.concat({
+            id: uuid(),
+            thought: payload.thought,
+            running: payload.running,
+            anchorId,
+          });
+        }
+
+        if (payload.running) {
+          const next = [];
+          next.push({
+            id: PENDING_THOUGHT_ID,
+            thought: { subject: '', description: '' },
+            running: true,
+            anchorId,
+          });
+          return next;
+        }
+
+        if (pendingIndex >= 0) {
+          const next = [...prev];
+          next.splice(pendingIndex, 1);
+          return next;
+        }
+
+        if (prev.length === 0) return prev;
+        const next = [...prev];
+        const lastIndex = next.length - 1;
+        next[lastIndex] = { ...next[lastIndex], running: false };
+        return next;
+      });
     },
     [conversationId]
   );
@@ -411,7 +478,15 @@ const MessageList: React.FC<{
     if (!isAtBottom()) return;
     const timer = setTimeout(() => scrollToBottom(), 50);
     return () => clearTimeout(timer);
-  }, [isUserScrolling, thoughtRunning, thought.description]);
+  }, [isUserScrolling, thoughtRunning, thoughtEntries]);
+
+  useEffect(() => {
+    setThoughtEntries([]);
+  }, [conversationId]);
+
+  useEffect(() => {
+    listRef.current = list;
+  }, [list]);
 
   return (
     <div className={classNames('relative flex-1 h-full chat-message-list', className)}>

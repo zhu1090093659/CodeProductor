@@ -28,6 +28,7 @@ export class CodexMessageProcessor {
   }
 
   processReasonSectionBreak() {
+    this.reasoningMsgId = uuid();
     this.currentReason = '';
   }
 

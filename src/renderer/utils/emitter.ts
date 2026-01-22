@@ -12,6 +12,7 @@ import type { PreviewContentType } from '@/common/types/preview';
 import type { PreviewMetadata } from '@/renderer/pages/conversation/workspace/preview/context/PreviewContext';
 
 type ThoughtData = { subject: string; description: string };
+type ThoughtUpdatePayload = { conversationId: string; thought: ThoughtData; running: boolean; thoughtId?: string | null };
 
 interface EventTypes {
   'acp.selected.file': [Array<string | FileOrFolderItem>];
@@ -46,7 +47,7 @@ interface EventTypes {
 
   // Conversation thought updates (rendered in chat view)
   // Note: this is UI-only state and is not persisted in DB.
-  'conversation.thought.update': [{ conversationId: string; thought: ThoughtData; running: boolean }];
+  'conversation.thought.update': [ThoughtUpdatePayload];
 }
 
 export const emitter = new EventEmitter<EventTypes>();

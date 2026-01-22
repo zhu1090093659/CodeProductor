@@ -18,6 +18,8 @@ export class AcpAdapter {
   private currentMessageId: string | null = uuid(); // Track current message for streaming chunks
   private suppressedMsgId: string | null = null;
   private currentThought: string = '';
+  private currentThoughtId: string | null = null;
+  private lastSessionUpdate: AcpSessionUpdate['update']['sessionUpdate'] | null = null;
 
   constructor(conversationId: string, backend: AcpBackend) {
     this.conversationId = conversationId;
@@ -44,6 +46,7 @@ export class AcpAdapter {
 
   resetThoughtTracking() {
     this.currentThought = '';
+    this.currentThoughtId = null;
   }
 
   /**
@@ -62,8 +65,13 @@ export class AcpAdapter {
   convertSessionUpdate(sessionUpdate: AcpSessionUpdate): TMessage[] {
     const messages: TMessage[] = [];
     const update = sessionUpdate.update;
+    const sessionUpdateType = update.sessionUpdate;
 
-    switch (update.sessionUpdate) {
+    if (sessionUpdateType === 'agent_thought_chunk' && this.lastSessionUpdate !== 'agent_thought_chunk') {
+      this.resetThoughtTracking();
+    }
+
+    switch (sessionUpdateType) {
       case 'agent_message_chunk': {
         const message = this.convertSessionUpdateChunk(update);
         if (message) messages.push(message);
@@ -124,6 +132,7 @@ export class AcpAdapter {
       }
     }
 
+    this.lastSessionUpdate = sessionUpdateType;
     return messages;
   }
 
@@ -181,8 +190,12 @@ export class AcpAdapter {
 
   private createThoughtMessage(content: string): TMessage | null {
     if (!content) return null;
+    if (!this.currentThoughtId) {
+      this.currentThoughtId = uuid();
+    }
     const baseMessage = {
       id: uuid(),
+      msg_id: this.currentThoughtId,
       conversation_id: this.conversationId,
       createdAt: Date.now(),
       position: 'center' as const,
