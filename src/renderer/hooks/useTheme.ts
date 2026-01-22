@@ -4,22 +4,26 @@ import { useCallback, useEffect, useState } from 'react';
 
 export type Theme = 'light' | 'dark';
 
-const DEFAULT_THEME: Theme = 'light';
+const DEFAULT_THEME: Theme = 'dark';
+
+const getSystemTheme = (): Theme => {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return DEFAULT_THEME;
+  }
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+};
 
 // Initialize theme immediately when module loads
 const initTheme = async () => {
+  const systemTheme = getSystemTheme();
+  document.documentElement.setAttribute('data-theme', systemTheme);
+  document.body.setAttribute('arco-theme', systemTheme);
   try {
-    const theme = (await ConfigStorage.get('theme')) as Theme;
-    const initialTheme = theme || DEFAULT_THEME;
-    document.documentElement.setAttribute('data-theme', initialTheme);
-    document.body.setAttribute('arco-theme', initialTheme);
-    return initialTheme;
+    await ConfigStorage.set('theme', systemTheme);
   } catch (error) {
-    console.error('Failed to load initial theme:', error);
-    document.documentElement.setAttribute('data-theme', DEFAULT_THEME);
-    document.body.setAttribute('arco-theme', DEFAULT_THEME);
-    return DEFAULT_THEME;
+    console.error('Failed to persist system theme:', error);
   }
+  return systemTheme;
 };
 
 // Run theme initialization immediately
