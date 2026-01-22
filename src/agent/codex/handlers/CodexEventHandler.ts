@@ -16,6 +16,7 @@ export class CodexEventHandler {
   private messageProcessor: CodexMessageProcessor;
   private toolHandlers: CodexToolHandlers;
   private messageEmitter: ICodexMessageEmitter;
+  private lastReasoningEvent = false;
 
   constructor(
     private conversation_id: string,
@@ -32,112 +33,121 @@ export class CodexEventHandler {
 
   private processCodexEvent(msg: CodexEventMsg) {
     const type = msg.type;
+    const isReasoningEvent = type === 'agent_reasoning' || type === 'agent_reasoning_delta' || type === 'agent_reasoning_section_break';
 
-    //agent_reasoning 因为有 agent_reasoning_delta，所以忽略
-    if (type === 'agent_reasoning') {
-      return;
-    }
-
-    // Generic error from Codex CLI (e.g. usage_limit_exceeded). Treat as terminal for current task.
-    if (type === 'error') {
-      this.messageProcessor.processGenericError({ type: 'error', data: { message: msg.message } });
-      this.messageProcessor.processTaskComplete();
-      return;
-    }
-
-    // agent_message 是完整消息，用于最终持久化（但不发送到前端，避免重复显示）
-    if (type === 'agent_message') {
-      this.messageProcessor.processFinalMessage(msg);
-      return;
-    }
-    if (type === 'session_configured' || type === 'token_count') {
-      return;
-    }
-    if (type === 'task_started') {
-      this.messageProcessor.processTaskStart();
-      return;
-    }
-    if (type === 'task_complete') {
-      this.messageProcessor.processTaskComplete();
-      return;
-    }
-
-    // Handle special message types that need custom processing
-    if (this.isMessageType(msg, 'agent_message_delta')) {
-      this.messageProcessor.processMessageDelta(msg);
-      return;
-    }
-
-    // Handle reasoning deltas and reasoning messages - send them to UI for dynamic thinking display
-    if (this.isMessageType(msg, 'agent_reasoning_delta')) {
-      this.messageProcessor.handleReasoningMessage(msg);
-      return;
-    }
-
-    if (this.isMessageType(msg, 'agent_reasoning_section_break')) {
-      // 思考过程中断了
+    if (isReasoningEvent && !this.lastReasoningEvent && type !== 'agent_reasoning_section_break') {
       this.messageProcessor.processReasonSectionBreak();
-      return;
-    }
-    // Note: Generic error events are now handled as stream_error type
-    // Handle ALL permission-related requests through unified handler
-    if (this.isMessageType(msg, 'exec_approval_request') || this.isMessageType(msg, 'apply_patch_approval_request')) {
-      this.handleUnifiedPermissionRequest(msg);
-      return;
     }
 
-    // Tool: patch apply
-    if (this.isMessageType(msg, 'patch_apply_begin')) {
-      this.toolHandlers.handlePatchApplyBegin(msg);
-      return;
-    }
+    try {
+      //agent_reasoning 因为有 agent_reasoning_delta，所以忽略
+      if (type === 'agent_reasoning') {
+        return;
+      }
 
-    if (this.isMessageType(msg, 'patch_apply_end')) {
-      this.toolHandlers.handlePatchApplyEnd(msg);
-      return;
-    }
+      // Generic error from Codex CLI (e.g. usage_limit_exceeded). Treat as terminal for current task.
+      if (type === 'error') {
+        this.messageProcessor.processGenericError({ type: 'error', data: { message: msg.message } });
+        this.messageProcessor.processTaskComplete();
+        return;
+      }
 
-    if (this.isMessageType(msg, 'exec_command_begin')) {
-      this.toolHandlers.handleExecCommandBegin(msg);
-      return;
-    }
+      // agent_message 是完整消息，用于最终持久化（但不发送到前端，避免重复显示）
+      if (type === 'agent_message') {
+        this.messageProcessor.processFinalMessage(msg);
+        return;
+      }
+      if (type === 'session_configured' || type === 'token_count') {
+        return;
+      }
+      if (type === 'task_started') {
+        this.messageProcessor.processTaskStart();
+        return;
+      }
+      if (type === 'task_complete') {
+        this.messageProcessor.processTaskComplete();
+        return;
+      }
 
-    if (this.isMessageType(msg, 'exec_command_output_delta')) {
-      this.toolHandlers.handleExecCommandOutputDelta(msg);
-      return;
-    }
+      // Handle special message types that need custom processing
+      if (this.isMessageType(msg, 'agent_message_delta')) {
+        this.messageProcessor.processMessageDelta(msg);
+        return;
+      }
 
-    if (this.isMessageType(msg, 'exec_command_end')) {
-      this.toolHandlers.handleExecCommandEnd(msg);
-      return;
-    }
+      // Handle reasoning deltas and reasoning messages - send them to UI for dynamic thinking display
+      if (this.isMessageType(msg, 'agent_reasoning_delta')) {
+        this.messageProcessor.handleReasoningMessage(msg);
+        return;
+      }
 
-    // Tool: mcp tool
-    if (this.isMessageType(msg, 'mcp_tool_call_begin')) {
-      this.toolHandlers.handleMcpToolCallBegin(msg);
-      return;
-    }
+      if (this.isMessageType(msg, 'agent_reasoning_section_break')) {
+        // 思考过程中断了
+        this.messageProcessor.processReasonSectionBreak();
+        return;
+      }
+      // Note: Generic error events are now handled as stream_error type
+      // Handle ALL permission-related requests through unified handler
+      if (this.isMessageType(msg, 'exec_approval_request') || this.isMessageType(msg, 'apply_patch_approval_request')) {
+        this.handleUnifiedPermissionRequest(msg);
+        return;
+      }
 
-    if (this.isMessageType(msg, 'mcp_tool_call_end')) {
-      this.toolHandlers.handleMcpToolCallEnd(msg);
-      return;
-    }
+      // Tool: patch apply
+      if (this.isMessageType(msg, 'patch_apply_begin')) {
+        this.toolHandlers.handlePatchApplyBegin(msg);
+        return;
+      }
 
-    // Tool: web search
-    if (this.isMessageType(msg, 'web_search_begin')) {
-      this.toolHandlers.handleWebSearchBegin(msg);
-      return;
-    }
+      if (this.isMessageType(msg, 'patch_apply_end')) {
+        this.toolHandlers.handlePatchApplyEnd(msg);
+        return;
+      }
 
-    if (this.isMessageType(msg, 'web_search_end')) {
-      this.toolHandlers.handleWebSearchEnd(msg);
-      return;
-    }
+      if (this.isMessageType(msg, 'exec_command_begin')) {
+        this.toolHandlers.handleExecCommandBegin(msg);
+        return;
+      }
 
-    // Tool: turn diff
-    if (this.isMessageType(msg, 'turn_diff')) {
-      this.toolHandlers.handleTurnDiff(msg);
-      return;
+      if (this.isMessageType(msg, 'exec_command_output_delta')) {
+        this.toolHandlers.handleExecCommandOutputDelta(msg);
+        return;
+      }
+
+      if (this.isMessageType(msg, 'exec_command_end')) {
+        this.toolHandlers.handleExecCommandEnd(msg);
+        return;
+      }
+
+      // Tool: mcp tool
+      if (this.isMessageType(msg, 'mcp_tool_call_begin')) {
+        this.toolHandlers.handleMcpToolCallBegin(msg);
+        return;
+      }
+
+      if (this.isMessageType(msg, 'mcp_tool_call_end')) {
+        this.toolHandlers.handleMcpToolCallEnd(msg);
+        return;
+      }
+
+      // Tool: web search
+      if (this.isMessageType(msg, 'web_search_begin')) {
+        this.toolHandlers.handleWebSearchBegin(msg);
+        return;
+      }
+
+      if (this.isMessageType(msg, 'web_search_end')) {
+        this.toolHandlers.handleWebSearchEnd(msg);
+        return;
+      }
+
+      // Tool: turn diff
+      if (this.isMessageType(msg, 'turn_diff')) {
+        this.toolHandlers.handleTurnDiff(msg);
+        return;
+      }
+    } finally {
+      this.lastReasoningEvent = isReasoningEvent;
     }
   }
 

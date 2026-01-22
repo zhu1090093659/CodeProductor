@@ -49,6 +49,10 @@ export class CodexMessageProcessor {
   }
 
   handleReasoningMessage(msg: Extract<CodexEventMsg, { type: 'agent_reasoning_delta' }> | Extract<CodexEventMsg, { type: 'agent_reasoning' }> | Extract<CodexEventMsg, { type: 'agent_reasoning_section_break' }>) {
+    if (!this.reasoningMsgId) {
+      this.reasoningMsgId = uuid();
+      this.currentReason = '';
+    }
     // 根据事件类型处理不同的数据结构 - TypeScript 自动类型缩窄
     let deltaText = '';
     if (msg.type === 'agent_reasoning_delta') {
