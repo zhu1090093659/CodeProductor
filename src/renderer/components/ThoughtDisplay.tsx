@@ -126,7 +126,7 @@ const ThoughtDisplay: React.FC<ThoughtDisplayProps> = ({ thought, style = 'defau
   }
 
   return (
-    <div className='relative' style={wrapperStyle}>
+    <div className='relative w-full' style={wrapperStyle}>
       <span
         className='absolute flex items-center'
         style={{

@@ -146,7 +146,7 @@ const BasePermissionDisplay: React.FC<BasePermissionDisplayProps> = React.memo((
 
   if (shouldShowAutoHandling) {
     return (
-      <Card className='mb-4' bordered={false} style={{ background: 'var(--bg-1)' }}>
+      <Card className='mb-4 w-full' bordered={false} style={{ background: 'var(--bg-1)' }}>
         <div className='space-y-4 p-2'>
           <div className='flex items-center space-x-2'>
             <span className='text-2xl'>{icon}</span>
@@ -158,7 +158,7 @@ const BasePermissionDisplay: React.FC<BasePermissionDisplayProps> = React.memo((
   }
 
   return (
-    <Card className='mb-4' bordered={false} style={{ background: 'var(--bg-1)' }}>
+    <Card className='mb-4 w-full' bordered={false} style={{ background: 'var(--bg-1)' }}>
       <div className='space-y-4'>
         <div className='flex items-center space-x-2'>
           <span className='text-2xl'>{icon}</span>

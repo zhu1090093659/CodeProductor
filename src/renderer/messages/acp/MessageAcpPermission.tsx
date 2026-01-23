@@ -137,7 +137,7 @@ const MessageAcpPermission: React.FC<MessageAcpPermissionProps> = React.memo(({ 
   }
 
   return (
-    <Card className='mb-4 permission-card' bordered={true} style={{ background: 'var(--bg-2)', borderColor: 'var(--color-border-2)' }}>
+    <Card className='mb-4 permission-card w-full' bordered={true} style={{ background: 'var(--bg-2)', borderColor: 'var(--color-border-2)' }}>
       <div className='space-y-4'>
         {/* Header with icon and title */}
         <div className='flex items-center space-x-3 pb-3 border-b border-[var(--color-border-1)]'>

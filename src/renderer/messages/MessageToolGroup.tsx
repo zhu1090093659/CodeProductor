@@ -401,7 +401,7 @@ const MessageToolGroup: React.FC<IMessageToolGroupProps> = ({ message }) => {
   }, [message.content]);
 
   return (
-    <div>
+    <div className='w-full'>
       {message.content.map((content, index) => {
         const { status, callId, name, description, resultDisplay, confirmationDetails } = content;
         const isLoading = status !== 'Success' && status !== 'Error' && status !== 'Canceled';

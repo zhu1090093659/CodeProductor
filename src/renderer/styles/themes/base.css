@@ -398,6 +398,11 @@ body,
   min-width: 0;
 }
 
+/* Ensure all direct children of timeline-message-content take full width for consistent alignment */
+.timeline-message-content > * {
+  width: 100%;
+}
+
 /* Dark theme adjustments */
 [data-theme='dark'] .timeline-connector {
   background: color-mix(in srgb, var(--border-base) 60%, transparent);
