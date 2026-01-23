@@ -7,7 +7,7 @@
 import { ipcBridge } from '@/common';
 import type { IResponseMessage } from '@/common/ipcBridge';
 import type { TMessage } from '@/common/chatLib';
-import type { TChatConversation } from '@/common/storage';
+import type { TChatConversation, IProvider, TProviderWithModel } from '@/common/storage';
 import { transformMessage } from '@/common/chatLib';
 import { uuid } from '@/common/utils';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -117,7 +117,19 @@ const ROLE_LABEL: Record<CollabRole, string> = {
   engineer: 'Engineer',
 };
 
-const CollabChatInner: React.FC<{ parentConversation: TChatConversation }> = ({ parentConversation }) => {
+const CollabChatInner: React.FC<{
+  parentConversation: TChatConversation;
+  // Action toolbar props (passed from parent)
+  interactiveMode: boolean;
+  onInteractiveModeToggle: () => void;
+  showCollabButton: boolean;
+  onCollabEnable: () => void;
+  // Model selection props
+  modelList?: IProvider[];
+  currentModel?: TProviderWithModel;
+  onModelSelect?: (model: TProviderWithModel) => void;
+  isModelLoading?: boolean;
+}> = ({ parentConversation, interactiveMode, onInteractiveModeToggle, showCollabButton, onCollabEnable, modelList, currentModel, onModelSelect, isModelLoading }) => {
   const { t } = useTranslation();
   const updateList = useUpdateMessageList();
   const addOrUpdateMessage = useAddOrUpdateMessage();
@@ -326,11 +338,11 @@ const CollabChatInner: React.FC<{ parentConversation: TChatConversation }> = ({ 
   const sendBox = useMemo(() => {
     if (parentConversation.type === 'acp') {
       const backend = (parentConversation.extra?.backend as AcpBackend | undefined) ?? ('claude' as AcpBackend);
-      return <AcpSendBox conversation_id={activeConversationId} backend={backend} mentionOptions={mentionOptions} onMentionSelect={(key) => setActiveRole(key as CollabRole)} optimisticUserMessage />;
+      return <AcpSendBox conversation_id={activeConversationId} backend={backend} mentionOptions={mentionOptions} onMentionSelect={(key) => setActiveRole(key as CollabRole)} optimisticUserMessage interactiveMode={interactiveMode} onInteractiveModeToggle={onInteractiveModeToggle} showCollabButton={showCollabButton} onCollabEnable={onCollabEnable} modelList={modelList} currentModel={currentModel} onModelSelect={onModelSelect} isModelLoading={isModelLoading} />;
     }
 
-    return <CodexSendBox conversation_id={activeConversationId} mentionOptions={mentionOptions} onMentionSelect={(key) => setActiveRole(key as CollabRole)} />;
-  }, [activeConversationId, mentionOptions, parentConversation.type, parentConversation.type === 'acp' ? parentConversation.extra?.backend : undefined]);
+    return <CodexSendBox conversation_id={activeConversationId} mentionOptions={mentionOptions} onMentionSelect={(key) => setActiveRole(key as CollabRole)} interactiveMode={interactiveMode} onInteractiveModeToggle={onInteractiveModeToggle} showCollabButton={showCollabButton} onCollabEnable={onCollabEnable} modelList={modelList} currentModel={currentModel} onModelSelect={onModelSelect} isModelLoading={isModelLoading} />;
+  }, [activeConversationId, mentionOptions, parentConversation.type, parentConversation.type === 'acp' ? parentConversation.extra?.backend : undefined, interactiveMode, onInteractiveModeToggle, showCollabButton, onCollabEnable, modelList, currentModel, onModelSelect, isModelLoading]);
 
   if (!roleMap || !activeConversationId || !workspace) {
     return (
@@ -409,10 +421,22 @@ const CollabChatInner: React.FC<{ parentConversation: TChatConversation }> = ({ 
   );
 };
 
-const CollabChat: React.FC<{ parentConversation: TChatConversation }> = ({ parentConversation }) => {
+const CollabChat: React.FC<{
+  parentConversation: TChatConversation;
+  // Action toolbar props
+  interactiveMode: boolean;
+  onInteractiveModeToggle: () => void;
+  showCollabButton: boolean;
+  onCollabEnable: () => void;
+  // Model selection props
+  modelList?: IProvider[];
+  currentModel?: TProviderWithModel;
+  onModelSelect?: (model: TProviderWithModel) => void;
+  isModelLoading?: boolean;
+}> = ({ parentConversation, interactiveMode, onInteractiveModeToggle, showCollabButton, onCollabEnable, modelList, currentModel, onModelSelect, isModelLoading }) => {
   return (
     <MessageListProvider value={[]}>
-      <CollabChatInner parentConversation={parentConversation} />
+      <CollabChatInner parentConversation={parentConversation} interactiveMode={interactiveMode} onInteractiveModeToggle={onInteractiveModeToggle} showCollabButton={showCollabButton} onCollabEnable={onCollabEnable} modelList={modelList} currentModel={currentModel} onModelSelect={onModelSelect} isModelLoading={isModelLoading} />
     </MessageListProvider>
   );
 };

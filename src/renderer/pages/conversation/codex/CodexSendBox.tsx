@@ -22,6 +22,7 @@ import { usePreviewContext } from '@/renderer/pages/conversation/workspace/previ
 import { useLatestRef } from '@/renderer/hooks/useLatestRef';
 import { useAutoTitle } from '@/renderer/hooks/useAutoTitle';
 import { useSlashCommands } from '@/renderer/hooks/useSlashCommands';
+import ActionToolbar from '@/renderer/components/ActionToolbar';
 
 interface CodexDraftData {
   _type: 'codex';
@@ -37,11 +38,23 @@ const useCodexSendBoxDraft = getSendBoxDraftHook('codex', {
   uploadFile: [],
 });
 
+import type { IProvider, TProviderWithModel } from '@/common/storage';
+
 const CodexSendBox: React.FC<{
   conversation_id: string;
   mentionOptions?: Array<{ key: string; label: string }>;
   onMentionSelect?: (key: string) => void;
-}> = ({ conversation_id, mentionOptions, onMentionSelect }) => {
+  // Action toolbar props
+  interactiveMode?: boolean;
+  onInteractiveModeToggle?: () => void;
+  showCollabButton?: boolean;
+  onCollabEnable?: () => void;
+  // Model selection props
+  modelList?: IProvider[];
+  currentModel?: TProviderWithModel;
+  onModelSelect?: (model: TProviderWithModel) => void;
+  isModelLoading?: boolean;
+}> = ({ conversation_id, mentionOptions, onMentionSelect, interactiveMode, onInteractiveModeToggle, showCollabButton, onCollabEnable, modelList, currentModel, onModelSelect, isModelLoading }) => {
   const [workspacePath, setWorkspacePath] = useState('');
   const { t } = useTranslation();
   const { checkAndUpdateTitle } = useAutoTitle();
@@ -444,6 +457,9 @@ const CodexSendBox: React.FC<{
         }
         onSend={onSendHandler}
       ></SendBox>
+
+      {/* Action Toolbar */}
+      {(interactiveMode !== undefined || modelList || showCollabButton) && <ActionToolbar interactiveMode={interactiveMode ?? false} onInteractiveModeToggle={onInteractiveModeToggle ?? (() => {})} showCollabButton={showCollabButton ?? false} onCollabButtonClick={onCollabEnable ?? (() => {})} modelList={modelList} currentModel={currentModel} onModelSelect={onModelSelect} isModelLoading={isModelLoading} showInteractiveToggle={!!onInteractiveModeToggle} showModelSelector={!!modelList} t={t} />}
     </div>
   );
 };

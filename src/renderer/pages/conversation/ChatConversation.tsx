@@ -8,7 +8,7 @@ import { ipcBridge } from '@/common';
 import { ASSISTANT_PRESETS } from '@/common/presets/assistantPresets';
 import type { IResponseMessage } from '@/common/ipcBridge';
 import type { IMessageAgentStatus } from '@/common/chatLib';
-import type { TChatConversation } from '@/common/storage';
+import type { IProvider, TChatConversation, TProviderWithModel } from '@/common/storage';
 import { ConfigStorage } from '@/common/storage';
 import { uuid } from '@/common/utils';
 import { Button, Dropdown, Menu, Tooltip, Typography } from '@arco-design/web-react';
@@ -27,6 +27,7 @@ import addChatIcon from '@/renderer/assets/add-chat.svg';
 import CoworkLogo from '@/renderer/assets/cowork.svg';
 import CollabChat from '@/renderer/pages/conversation/collab/CollabChat';
 import { INTERACTIVE_MODE_CONFIG_KEY } from '@/common/interactivePrompt';
+import useConfigModelListWithImage from '@/renderer/hooks/useConfigModelListWithImage';
 // import SkillRuleGenerator from './components/SkillRuleGenerator'; // Temporarily hidden
 
 type CollabRole = 'pm' | 'analyst' | 'engineer';
@@ -109,6 +110,54 @@ const ChatConversation: React.FC<{
   const [agentStatus, setAgentStatus] = useState<IMessageAgentStatus['content'] | null>(null);
   const [interactiveMode, setInteractiveMode] = useState(false);
   const [interactiveModeLoaded, setInteractiveModeLoaded] = useState(false);
+  const [currentModel, setCurrentModel] = useState<TProviderWithModel | undefined>(undefined);
+
+  // Load model list using config hook
+  const { modelListWithImage: modelList } = useConfigModelListWithImage();
+  const isModelLoading = false; // Config model list doesn't have loading state
+
+  // Load current default model from ConfigStorage
+  useEffect(() => {
+    let isActive = true;
+    Promise.all([ConfigStorage.get('model.defaultModel'), ConfigStorage.get('model.config')])
+      .then(([defaultModelName, modelConfig]) => {
+        if (!isActive) return;
+        if (typeof defaultModelName === 'string' && modelConfig) {
+          // Find the provider that contains this model
+          const providers = modelConfig as IProvider[];
+          for (const provider of providers) {
+            if (provider.model?.includes(defaultModelName)) {
+              setCurrentModel({ ...provider, useModel: defaultModelName });
+              return;
+            }
+          }
+        }
+        // Fallback: use first available model from modelList
+        if (modelList && modelList.length > 0) {
+          const firstProvider = modelList[0];
+          if (firstProvider.model && firstProvider.model.length > 0) {
+            setCurrentModel({ ...firstProvider, useModel: firstProvider.model[0] });
+          }
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to load default model:', error);
+      });
+    return () => {
+      isActive = false;
+    };
+  }, [modelList]);
+
+  // Handle model selection
+  const handleModelSelect = useCallback(async (model: TProviderWithModel) => {
+    setCurrentModel(model);
+    // Save to ConfigStorage if not a CLI model
+    if (!model.id?.startsWith('cli:')) {
+      await ConfigStorage.set('model.defaultModel', model.useModel).catch((error) => {
+        console.error('Failed to save default model:', error);
+      });
+    }
+  }, []);
 
   // If user navigates to a hidden collab child, redirect to parent.
   useEffect(() => {
@@ -153,34 +202,6 @@ const ChatConversation: React.FC<{
   const toggleInteractiveMode = useCallback(() => {
     setInteractiveMode((prev) => !prev);
   }, []);
-
-  const conversationNode = useMemo(() => {
-    if (!conversation) return null;
-    const isCollabParent = Boolean((conversation.extra as { collab?: unknown } | undefined)?.collab);
-    if (isCollabParent) {
-      return <CollabChat key={conversation.id} parentConversation={conversation} />;
-    }
-    switch (conversation.type) {
-      case 'acp':
-        return <AcpChat key={conversation.id} conversation_id={conversation.id} workspace={conversation.extra?.workspace} backend={conversation.extra?.backend || 'claude'}></AcpChat>;
-      case 'codex':
-        return <CodexChat key={conversation.id} conversation_id={conversation.id} workspace={conversation.extra?.workspace} />;
-      default:
-        return null;
-    }
-  }, [conversation]);
-
-  useEffect(() => {
-    setAgentStatus(null);
-    if (!conversation) return;
-
-    const stream = conversation.type === 'acp' ? ipcBridge.acpConversation.responseStream : ipcBridge.codexConversation.responseStream;
-    return stream.on((message: IResponseMessage) => {
-      if (message.type !== 'agent_status') return;
-      if (message.conversation_id !== conversation.id) return;
-      setAgentStatus(message.data as IMessageAgentStatus['content']);
-    });
-  }, [conversation?.id, conversation?.type]);
 
   const enableCollab = useCallback(async (): Promise<CollabRoleMap | null> => {
     if (!conversation?.id) return null;
@@ -270,6 +291,40 @@ const ChatConversation: React.FC<{
     }
   }, [conversation, i18n.language, t]);
 
+  const conversationNode = useMemo(() => {
+    if (!conversation) return null;
+    const extra = conversation.extra as { collab?: unknown; collabParentId?: string; workspace?: string; backend?: string } | undefined;
+    const isCollabParent = Boolean(extra?.collab);
+    const isCollabChild = Boolean(extra?.collabParentId);
+
+    // Determine if Collab button should be shown
+    const showCollabButton = !isCollabChild && !isCollabParent && !!extra?.workspace;
+
+    if (isCollabParent) {
+      return <CollabChat key={conversation.id} parentConversation={conversation} interactiveMode={interactiveMode} onInteractiveModeToggle={toggleInteractiveMode} showCollabButton={false} onCollabEnable={enableCollab} modelList={modelList} currentModel={currentModel} onModelSelect={handleModelSelect} isModelLoading={isModelLoading} />;
+    }
+    switch (conversation.type) {
+      case 'acp':
+        return <AcpChat key={conversation.id} conversation_id={conversation.id} workspace={extra?.workspace} backend={(extra?.backend as any) || 'claude'} interactiveMode={interactiveMode} onInteractiveModeToggle={toggleInteractiveMode} showCollabButton={showCollabButton} onCollabEnable={enableCollab} modelList={modelList} currentModel={currentModel} onModelSelect={handleModelSelect} isModelLoading={isModelLoading} />;
+      case 'codex':
+        return <CodexChat key={conversation.id} conversation_id={conversation.id} workspace={extra?.workspace} interactiveMode={interactiveMode} onInteractiveModeToggle={toggleInteractiveMode} showCollabButton={showCollabButton} onCollabEnable={enableCollab} modelList={modelList} currentModel={currentModel} onModelSelect={handleModelSelect} isModelLoading={isModelLoading} />;
+      default:
+        return null;
+    }
+  }, [conversation, interactiveMode, toggleInteractiveMode, enableCollab, modelList, currentModel, handleModelSelect, isModelLoading]);
+
+  useEffect(() => {
+    setAgentStatus(null);
+    if (!conversation) return;
+
+    const stream = conversation.type === 'acp' ? ipcBridge.acpConversation.responseStream : ipcBridge.codexConversation.responseStream;
+    return stream.on((message: IResponseMessage) => {
+      if (message.type !== 'agent_status') return;
+      if (message.conversation_id !== conversation.id) return;
+      setAgentStatus(message.data as IMessageAgentStatus['content']);
+    });
+  }, [conversation?.id, conversation?.type]);
+
   // Auto-enable collab when requested from welcome page.
   useEffect(() => {
     if (!conversation?.id) return;
@@ -344,44 +399,6 @@ const ChatConversation: React.FC<{
     })();
   }, [conversation, enableCollab]);
 
-  const interactiveToggle = useMemo(() => {
-    if (!conversation?.id) return null;
-    return (
-      <Tooltip content={t('conversation.interactiveModeTooltip', { defaultValue: 'Interactive requirement discovery' })}>
-        <Button size='mini' shape='round' aria-pressed={interactiveMode} className={`collab-enable-btn ${interactiveMode ? 'mode-toggle-active' : ''}`} onClick={toggleInteractiveMode}>
-          {t('conversation.interactiveMode', { defaultValue: 'Interactive' })}
-        </Button>
-      </Tooltip>
-    );
-  }, [conversation?.id, interactiveMode, t, toggleInteractiveMode]);
-
-  const collabEnableButton = useMemo(() => {
-    if (!conversation?.id) return null;
-    if (!conversation.extra?.workspace) return null;
-
-    const extra = conversation.extra as { collab?: unknown; collabParentId?: string };
-    if (extra?.collabParentId) return null; // child is hidden/redirected
-    if (extra?.collab) return null; // already enabled
-
-    return (
-      <Tooltip content='Enable PM/Analyst/Engineer collaboration'>
-        <Button size='mini' shape='round' className='collab-enable-btn' onClick={() => void enableCollab()}>
-          Collab
-        </Button>
-      </Tooltip>
-    );
-  }, [conversation, enableCollab]);
-
-  const headerExtra = useMemo(() => {
-    if (!interactiveToggle && !collabEnableButton) return null;
-    return (
-      <div className='flex items-center gap-8px'>
-        {interactiveToggle}
-        {collabEnableButton}
-      </div>
-    );
-  }, [collabEnableButton, interactiveToggle]);
-
   // 获取预设助手信息（如果有）/ Get preset assistant info for ACP/Codex conversations
   const presetAssistantInfo = useMemo(() => {
     if (!conversation) return null;
@@ -429,19 +446,16 @@ const ChatConversation: React.FC<{
         agentName: 'Collab',
         agentLogo: '🤝',
         agentLogoIsEmoji: true,
-        headerExtra,
       }
     : presetAssistantInfo
       ? {
           agentName: presetAssistantInfo.name,
           agentLogo: presetAssistantInfo.logo,
           agentLogoIsEmoji: presetAssistantInfo.isEmoji,
-          headerExtra,
         }
       : {
           backend: conversation?.type === 'acp' ? conversation?.extra?.backend : conversation?.type === 'codex' ? 'codex' : undefined,
           agentName: (conversation?.extra as { agentName?: string })?.agentName,
-          headerExtra,
         };
 
   const sider = useMemo(() => {

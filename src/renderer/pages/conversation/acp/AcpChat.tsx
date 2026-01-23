@@ -5,6 +5,7 @@
  */
 
 import type { AcpBackend } from '@/types/acpTypes';
+import type { IProvider, TProviderWithModel } from '@/common/storage';
 import FlexFullContainer from '@renderer/components/FlexFullContainer';
 import MessageList from '@renderer/messages/MessageList';
 import { MessageListProvider, useMessageLstCache } from '@renderer/messages/hooks';
@@ -17,7 +18,17 @@ const AcpChat: React.FC<{
   conversation_id: string;
   workspace?: string;
   backend: AcpBackend;
-}> = ({ conversation_id, workspace, backend }) => {
+  // Action toolbar props
+  interactiveMode: boolean;
+  onInteractiveModeToggle: () => void;
+  showCollabButton: boolean;
+  onCollabEnable: () => void;
+  // Model selection props
+  modelList?: IProvider[];
+  currentModel?: TProviderWithModel;
+  onModelSelect?: (model: TProviderWithModel) => void;
+  isModelLoading?: boolean;
+}> = ({ conversation_id, workspace, backend, interactiveMode, onInteractiveModeToggle, showCollabButton, onCollabEnable, modelList, currentModel, onModelSelect, isModelLoading }) => {
   useMessageLstCache(conversation_id);
 
   return (
@@ -26,7 +37,7 @@ const AcpChat: React.FC<{
         <FlexFullContainer>
           <MessageList className='flex-1'></MessageList>
         </FlexFullContainer>
-        <AcpSendBox conversation_id={conversation_id} backend={backend}></AcpSendBox>
+        <AcpSendBox conversation_id={conversation_id} backend={backend} interactiveMode={interactiveMode} onInteractiveModeToggle={onInteractiveModeToggle} showCollabButton={showCollabButton} onCollabEnable={onCollabEnable} modelList={modelList} currentModel={currentModel} onModelSelect={onModelSelect} isModelLoading={isModelLoading} />
       </div>
     </ConversationProvider>
   );

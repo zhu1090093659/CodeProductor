@@ -12,11 +12,22 @@ import React, { useEffect } from 'react';
 import CodexSendBox from './CodexSendBox';
 import LocalImageView from '../../../components/LocalImageView';
 import { ConversationProvider } from '@/renderer/context/ConversationContext';
+import type { IProvider, TProviderWithModel } from '@/common/storage';
 
 const CodexChat: React.FC<{
   conversation_id: string;
   workspace: string;
-}> = ({ conversation_id, workspace }) => {
+  // Action toolbar props
+  interactiveMode: boolean;
+  onInteractiveModeToggle: () => void;
+  showCollabButton: boolean;
+  onCollabEnable: () => void;
+  // Model selection props
+  modelList?: IProvider[];
+  currentModel?: TProviderWithModel;
+  onModelSelect?: (model: TProviderWithModel) => void;
+  isModelLoading?: boolean;
+}> = ({ conversation_id, workspace, interactiveMode, onInteractiveModeToggle, showCollabButton, onCollabEnable, modelList, currentModel, onModelSelect, isModelLoading }) => {
   useMessageLstCache(conversation_id);
   const updateLocalImage = LocalImageView.useUpdateLocalImage();
   useEffect(() => {
@@ -28,7 +39,7 @@ const CodexChat: React.FC<{
         <FlexFullContainer>
           <MessageList className='flex-1'></MessageList>
         </FlexFullContainer>
-        <CodexSendBox conversation_id={conversation_id} />
+        <CodexSendBox conversation_id={conversation_id} interactiveMode={interactiveMode} onInteractiveModeToggle={onInteractiveModeToggle} showCollabButton={showCollabButton} onCollabEnable={onCollabEnable} modelList={modelList} currentModel={currentModel} onModelSelect={onModelSelect} isModelLoading={isModelLoading} />
       </div>
     </ConversationProvider>
   );
