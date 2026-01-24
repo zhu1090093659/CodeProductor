@@ -6,7 +6,7 @@
 
 import { ipcBridge } from '@/common';
 import { ASSISTANT_PRESETS } from '@/common/presets/assistantPresets';
-import type { CliProviderTarget, CliProvidersStorage, IProvider, ProjectInfo, TProviderWithModel } from '@/common/storage';
+import type { CliProviderTarget, IProvider, ProjectInfo, TProviderWithModel } from '@/common/storage';
 import { ConfigStorage } from '@/common/storage';
 import { resolveLocaleKey } from '@/common/utils';
 import { useProjects } from '@/renderer/hooks/useProjects';
@@ -23,13 +23,12 @@ import { useCompositionInput } from '@/renderer/hooks/useCompositionInput';
 import { useDragUpload } from '@/renderer/hooks/useDragUpload';
 import { usePasteService } from '@/renderer/hooks/usePasteService';
 import { useSlashCommands } from '@/renderer/hooks/useSlashCommands';
-import useModeModeList from '@/renderer/hooks/useModeModeList';
+import { useCliModelList, getAvailableModels } from '@/renderer/hooks/useCliModelList';
 import { CLAUDE_PROVIDER_PRESETS } from '@/renderer/config/cliProviders/claudePresets';
 import { CODEX_PROVIDER_PRESETS } from '@/renderer/config/cliProviders/codexPresets';
 import { allSupportedExts, type FileMetadata, getCleanFileNames } from '@/renderer/services/FileService';
 import { iconColors } from '@/renderer/theme/colors';
 import { emitter } from '@/renderer/utils/emitter';
-import { hasSpecificModelCapability } from '@/renderer/utils/modelCapabilities';
 import { applyCliModelOnSelect } from '@/renderer/utils/cliModelService';
 import { INTERACTIVE_MODE_CONFIG_KEY } from '@/common/interactivePrompt';
 import type { AcpBackend, AcpBackendConfig } from '@/types/acpTypes';
@@ -58,57 +57,6 @@ const getCollabRoleFromAgentId = (customAgentId?: string): CollabRole => {
 };
 
 /**
- * 缓存Provider的可用模型列表，避免重复计算
- */
-const availableModelsCache = new Map<string, string[]>();
-
-/**
- * 获取提供商下所有可用的主力模型（带缓存）
- * @param provider - 提供商配置
- * @returns 可用的主力模型名称数组
- */
-const getAvailableModels = (provider: IProvider): string[] => {
-  // 生成缓存键，包含模型列表以检测变化
-  const cacheKey = `${provider.id}-${(provider.model || []).join(',')}`;
-
-  // 检查缓存
-  if (availableModelsCache.has(cacheKey)) {
-    return availableModelsCache.get(cacheKey)!;
-  }
-
-  // 计算可用模型
-  const result: string[] = [];
-  for (const modelName of provider.model || []) {
-    const functionCalling = hasSpecificModelCapability(provider, modelName, 'function_calling');
-    const excluded = hasSpecificModelCapability(provider, modelName, 'excludeFromPrimary');
-
-    if ((functionCalling === true || functionCalling === undefined) && excluded !== true) {
-      result.push(modelName);
-    }
-  }
-
-  // 缓存结果
-  availableModelsCache.set(cacheKey, result);
-  return result;
-};
-
-/**
- * 检查提供商是否有可用的主力对话模型（高效版本）
- * @param provider - 提供商配置
- * @returns true 表示提供商有可用模型，false 表示无可用模型
- */
-const hasAvailableModels = (provider: IProvider): boolean => {
-  // 直接使用缓存的结果，避免重复计算
-  const availableModels = getAvailableModels(provider);
-  return availableModels.length > 0;
-};
-
-const getCliProviderTarget = (agentKey?: string, agentPresetType?: CliProviderTarget) => {
-  if (agentKey === 'codex' || agentKey === 'claude') return agentKey;
-  return agentPresetType || null;
-};
-
-/**
  * 获取代理的唯一选择键
  * 对于自定义代理返回 "custom:uuid"，其他代理返回 backend 类型
  * Helper to get agent key for selection
@@ -116,68 +64,6 @@ const getCliProviderTarget = (agentKey?: string, agentPresetType?: CliProviderTa
  */
 const getAgentKey = (agent: { backend: AcpBackend; customAgentId?: string }) => {
   return agent.backend === 'custom' && agent.customAgentId ? `custom:${agent.customAgentId}` : agent.backend;
-};
-
-const useModelList = (selectedAgentKey: string, selectedAgentPresetType?: CliProviderTarget | null) => {
-  const { data: cliProviders } = useSWR('cli.providers.welcome', () => {
-    return ConfigStorage.get('cli.providers').then((data) => data || ({} as CliProvidersStorage));
-  });
-
-  const cliTarget = useMemo(() => getCliProviderTarget(selectedAgentKey, selectedAgentPresetType || null), [selectedAgentKey, selectedAgentPresetType]);
-  const cliConfig = cliTarget ? cliProviders?.[cliTarget] : undefined;
-
-  const cliPreset = useMemo(() => {
-    if (!cliTarget || !cliConfig?.presetName) return null;
-    const presets = cliTarget === 'codex' ? CODEX_PROVIDER_PRESETS : CLAUDE_PROVIDER_PRESETS;
-    return presets.find((p) => p.name === cliConfig.presetName) || null;
-  }, [cliConfig?.presetName, cliTarget]);
-  const isOfficialCliProvider = useMemo(() => cliPreset?.category === 'official', [cliPreset?.category]);
-
-  const codexModelListState = useModeModeList(cliTarget === 'codex' ? 'openai' : '', cliConfig?.baseUrl, cliConfig?.apiKey, undefined, isOfficialCliProvider);
-  const codexModels = useMemo(() => (cliTarget === 'codex' ? codexModelListState.data?.models?.map((item) => item.value) || [] : []), [cliTarget, codexModelListState.data?.models]);
-  const claudeModelListState = useModeModeList(cliTarget === 'claude' ? 'anthropic' : '', cliConfig?.baseUrl, cliConfig?.apiKey, undefined, isOfficialCliProvider);
-  const claudeModels = useMemo(() => (cliTarget === 'claude' ? claudeModelListState.data?.models?.map((item) => item.value) || [] : []), [cliTarget, claudeModelListState.data?.models]);
-  const enabledModelSet = useMemo(() => new Set(cliConfig?.enabledModels || []), [cliConfig?.enabledModels]);
-
-  const providerName = useMemo(() => {
-    if (!cliTarget) return '';
-    return cliConfig?.presetName || (cliTarget === 'codex' ? 'Codex' : 'Claude Code');
-  }, [cliConfig?.presetName, cliTarget]);
-
-  const modelList = useMemo(() => {
-    if (!cliTarget) return [];
-    const models = cliTarget === 'codex' ? codexModels : claudeModels;
-    const filteredModels = enabledModelSet.size > 0 ? models.filter((model) => enabledModelSet.has(model)) : [];
-    if (!filteredModels.length) return [];
-    const provider: IProvider = {
-      id: `cli:${cliTarget}`,
-      platform: cliTarget,
-      name: providerName,
-      baseUrl: cliConfig?.baseUrl || '',
-      apiKey: cliConfig?.apiKey || '',
-      model: filteredModels,
-    };
-    return [provider].filter(hasAvailableModels);
-  }, [cliTarget, codexModels, claudeModels, providerName, enabledModelSet, cliConfig?.apiKey, cliConfig?.baseUrl]);
-
-  const isConfigured = useMemo(() => {
-    if (!cliTarget) return false;
-    if (isOfficialCliProvider) return true;
-    if (cliTarget === 'codex') {
-      return Boolean(cliConfig?.apiKey || cliConfig?.baseUrl);
-    }
-    return Boolean(cliConfig?.model);
-  }, [cliTarget, cliConfig?.apiKey, cliConfig?.baseUrl, cliConfig?.model, isOfficialCliProvider]);
-
-  const hasEnabledModels = useMemo(() => enabledModelSet.size > 0, [enabledModelSet.size]);
-
-  return {
-    modelList,
-    isConfigured,
-    hasEnabledModels,
-    hasCliTarget: Boolean(cliTarget),
-    isLoading: (cliTarget === 'codex' ? codexModelListState.isLoading : cliTarget === 'claude' ? claudeModelListState.isLoading : false) || false,
-  };
 };
 
 // Agent Logo 映射 (custom uses Robot icon from @icon-park/react)
@@ -369,7 +255,7 @@ const Guid: React.FC = () => {
   const selectedAgent = selectedAgentKey.startsWith('custom:') ? 'custom' : (selectedAgentKey as AcpBackend);
   const selectedAgentInfo = useMemo(() => findAgentByKey(selectedAgentKey), [selectedAgentKey, availableAgents]);
   // eslint-disable-next-line max-len
-  const { modelList, isConfigured: isCliProviderConfigured, hasCliTarget: hasCliProviderTarget, hasEnabledModels: hasCliProviderEnabledModels, isLoading: isCliProviderLoading } = useModelList(selectedAgentKey, selectedAgentInfo?.presetAgentType || null);
+  const { modelList, isConfigured: isCliProviderConfigured, hasCliTarget: hasCliProviderTarget, hasEnabledModels: hasCliProviderEnabledModels, isLoading: isCliProviderLoading } = useCliModelList(selectedAgentKey, selectedAgentInfo?.presetAgentType || null);
   const isPresetAgent = Boolean(selectedAgentInfo?.isPreset);
   const [isPlusDropdownOpen, setIsPlusDropdownOpen] = useState(false);
   const [typewriterPlaceholder, setTypewriterPlaceholder] = useState('');

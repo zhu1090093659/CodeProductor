@@ -27,7 +27,7 @@ import addChatIcon from '@/renderer/assets/add-chat.svg';
 import CoworkLogo from '@/renderer/assets/cowork.svg';
 import CollabChat from '@/renderer/pages/conversation/collab/CollabChat';
 import { INTERACTIVE_MODE_CONFIG_KEY } from '@/common/interactivePrompt';
-import useConfigModelListWithImage from '@/renderer/hooks/useConfigModelListWithImage';
+import { useCliModelList } from '@/renderer/hooks/useCliModelList';
 import { applyCliModelOnSelect } from '@/renderer/utils/cliModelService';
 // import SkillRuleGenerator from './components/SkillRuleGenerator'; // Temporarily hidden
 
@@ -113,9 +113,19 @@ const ChatConversation: React.FC<{
   const [interactiveModeLoaded, setInteractiveModeLoaded] = useState(false);
   const [currentModel, setCurrentModel] = useState<TProviderWithModel | undefined>(undefined);
 
-  // Load model list using config hook
-  const { modelListWithImage: modelList } = useConfigModelListWithImage();
-  const isModelLoading = false; // Config model list doesn't have loading state
+  // Determine CLI target based on conversation type and backend
+  const cliTarget = useMemo(() => {
+    if (!conversation) return '';
+    if (conversation.type === 'codex') return 'codex';
+    if (conversation.type === 'acp') {
+      const backend = (conversation.extra as { backend?: string } | undefined)?.backend;
+      return backend === 'codex' ? 'codex' : 'claude';
+    }
+    return '';
+  }, [conversation]);
+
+  // Load model list using CLI model hook
+  const { modelList, isLoading: isModelLoading } = useCliModelList(cliTarget);
 
   // Load current default model from ConfigStorage
   useEffect(() => {
