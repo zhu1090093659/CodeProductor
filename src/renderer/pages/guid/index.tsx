@@ -411,6 +411,27 @@ const Guid: React.FC = () => {
     [stripMentionToken]
   );
 
+  // Direct agent selection handler (without mention token processing)
+  const handleAgentSelect = useCallback(
+    (key: string) => {
+      setSelectedAgentKey(key);
+      setMentionOpen(false);
+      setMentionQuery(null);
+      setMentionSelectorOpen(false);
+      setMentionActiveIndex(0);
+    },
+    [setSelectedAgentKey]
+  );
+
+  // Pre-filter agents: CLI agents vs custom assistants
+  const { cliAgents, customAssistants } = useMemo(() => {
+    if (!availableAgents) return { cliAgents: [], customAssistants: [] };
+    return {
+      cliAgents: availableAgents.filter((agent) => agent.backend !== 'custom'),
+      customAssistants: availableAgents.filter((agent) => agent.backend === 'custom'),
+    };
+  }, [availableAgents]);
+
   const selectedAgentLabel = selectedAgentInfo?.name || selectedAgentKey;
   const mentionMenuActiveOption = filteredMentionOptions[mentionActiveIndex] || filteredMentionOptions[0];
   const mentionMenuSelectedKey = mentionOpen || mentionSelectorOpen ? mentionMenuActiveOption?.key || selectedAgentKey : selectedAgentKey;
@@ -1104,8 +1125,8 @@ const Guid: React.FC = () => {
         <div className={styles.guidLayout}>
           <p className={`text-2xl font-semibold mb-8 text-0 text-center`}>{t('conversation.welcome.title')}</p>
 
-          {/* Agent 选择器 - 在标题下方 */}
-          {availableAgents && availableAgents.length > 0 && (
+          {/* CLI 选择器 - 在标题下方 */}
+          {cliAgents.length > 0 && (
             <div className='w-full flex justify-center'>
               <div
                 className='inline-flex items-center bg-fill-2'
@@ -1118,12 +1139,9 @@ const Guid: React.FC = () => {
                   gap: 0,
                 }}
               >
-                {availableAgents.map((agent, index) => {
+                {cliAgents.map((agent, index) => {
                   const isSelected = selectedAgentKey === getAgentKey(agent);
                   const logoSrc = AGENT_LOGO_MAP[agent.backend];
-                  const avatarValue = agent.backend === 'custom' ? agent.avatar || customAgentAvatarMap.get(agent.customAgentId || '') : undefined;
-                  const avatar = avatarValue ? avatarValue.trim() : undefined;
-                  const avatarImage = avatar ? CUSTOM_AVATAR_IMAGE_MAP[avatar] : undefined;
 
                   return (
                     <React.Fragment key={getAgentKey(agent)}>
@@ -1138,15 +1156,9 @@ const Guid: React.FC = () => {
                               }
                             : { transition: 'opacity 0.5s cubic-bezier(0.2, 0.8, 0.3, 1)' }
                         }
-                        onClick={() => {
-                          setSelectedAgentKey(getAgentKey(agent));
-                          setMentionOpen(false);
-                          setMentionQuery(null);
-                          setMentionSelectorOpen(false);
-                          setMentionActiveIndex(0);
-                        }}
+                        onClick={() => handleAgentSelect(getAgentKey(agent))}
                       >
-                        {avatarImage ? <img src={avatarImage} alt='' width={20} height={20} style={{ objectFit: 'contain', flexShrink: 0 }} /> : avatar ? <span style={{ fontSize: 16, lineHeight: '20px', flexShrink: 0 }}>{avatar}</span> : logoSrc ? <img src={logoSrc} alt={`${agent.backend} logo`} width={20} height={20} style={{ objectFit: 'contain', flexShrink: 0 }} /> : <Robot theme='outline' size={20} style={{ flexShrink: 0 }} />}
+                        {logoSrc ? <img src={logoSrc} alt={`${agent.backend} logo`} width={20} height={20} style={{ objectFit: 'contain', flexShrink: 0 }} /> : <Robot theme='outline' size={20} style={{ flexShrink: 0 }} />}
                         <span
                           className={`font-medium text-14px ${isSelected ? 'font-semibold' : 'max-w-0 opacity-0 overflow-hidden group-hover:max-w-100px group-hover:opacity-100 group-hover:ml-8px'}`}
                           style={{
@@ -1433,6 +1445,33 @@ const Guid: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* 助手预设 - 在输入框下方 */}
+          {customAssistants.length > 0 && (
+            <div className='w-full flex justify-center'>
+              <div
+                className='inline-flex items-center flex-wrap justify-center gap-8px'
+                style={{
+                  marginTop: 16,
+                  maxWidth: '100%',
+                }}
+              >
+                {customAssistants.map((agent) => {
+                  const isSelected = selectedAgentKey === getAgentKey(agent);
+                  const avatarValue = agent.avatar || customAgentAvatarMap.get(agent.customAgentId || '');
+                  const avatar = avatarValue ? avatarValue.trim() : undefined;
+                  const avatarImage = avatar ? CUSTOM_AVATAR_IMAGE_MAP[avatar] : undefined;
+
+                  return (
+                    <div key={getAgentKey(agent)} className={`flex items-center gap-6px cursor-pointer px-12px py-6px rd-20px border border-solid transition-all duration-200 ${isSelected ? 'border-[rgb(var(--primary-6))] bg-[rgba(var(--primary-6),0.08)]' : 'border-[var(--color-border-2)] bg-fill-1 hover:border-[var(--color-border-3)] hover:bg-fill-2'}`} onClick={() => handleAgentSelect(getAgentKey(agent))}>
+                      {avatarImage ? <img src={avatarImage} alt='' width={16} height={16} style={{ objectFit: 'contain', flexShrink: 0 }} /> : avatar ? <span style={{ fontSize: 14, lineHeight: '16px', flexShrink: 0 }}>{avatar}</span> : <Robot theme='outline' size={16} style={{ flexShrink: 0 }} />}
+                      <span className={`text-13px ${isSelected ? 'text-[rgb(var(--primary-6))] font-medium' : 'text-t-secondary'}`}>{agent.name}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 底部快捷按钮 */}
