@@ -66,6 +66,11 @@ export const useMessageLstCache = (key: string) => {
         pageSize: 10000, // Load all messages (up to 10k per conversation)
       })
       .then((messages) => {
+        console.log('[useMessageLstCache] Loaded messages from DB:', {
+          conversation_id: key,
+          count: messages?.length,
+          types: messages?.map((m: TMessage) => m.type),
+        });
         if (messages && Array.isArray(messages)) {
           update(() => messages);
         }

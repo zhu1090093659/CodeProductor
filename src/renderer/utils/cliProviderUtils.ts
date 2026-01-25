@@ -17,7 +17,9 @@ export type { ClaudeProviderPreset, CodexProviderPreset };
 /**
  * Check if a preset is an official CLI preset
  */
-export const isOfficialCliPreset = (preset?: ClaudeProviderPreset | CodexProviderPreset): boolean => {
+type ProviderPresetLike = { category?: string };
+
+export const isOfficialCliPreset = (preset?: ProviderPresetLike): boolean => {
   return preset?.category === 'official';
 };
 

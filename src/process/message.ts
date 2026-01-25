@@ -184,19 +184,23 @@ export const addOrUpdateMessage = (conversation_id: string, message: TMessage, b
           }
         }
       } else {
-        // Other message types (status, tips, etc.) - usually don't need merging
+        // Other message types (status, tips, thought, etc.) - usually don't need merging
         // Just insert or update based on msg_id if available
+        console.log('[Message] Processing other message type:', { type: message.type, msg_id: message.msg_id, id: message.id });
         if (message.msg_id) {
           const existing = db.getMessageByMsgId(conversation_id, message.msg_id);
+          console.log('[Message] Existing check result:', { found: existing.success && !!existing.data });
           if (existing.success && existing.data) {
             // Update existing
             const updateResult = db.updateMessage(existing.data.id, message);
+            console.log('[Message] Update result:', updateResult);
             if (!updateResult.success) {
               console.error('[Message] Update failed:', updateResult.error);
             }
           } else {
             // Insert new
             const insertResult = db.insertMessage(message);
+            console.log('[Message] Insert result:', insertResult);
             if (!insertResult.success) {
               console.error('[Message] Insert failed:', insertResult.error);
             }
@@ -204,6 +208,7 @@ export const addOrUpdateMessage = (conversation_id: string, message: TMessage, b
         } else {
           // No msg_id - always insert as new
           const insertResult = db.insertMessage(message);
+          console.log('[Message] Insert (no msg_id) result:', insertResult);
           if (!insertResult.success) {
             console.error('[Message] Insert failed:', insertResult.error);
           }

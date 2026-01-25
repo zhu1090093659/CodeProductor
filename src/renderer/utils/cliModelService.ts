@@ -6,7 +6,10 @@
 
 import { ipcBridge } from '@/common';
 import { ConfigStorage, type CliProviderTarget, type TProviderWithModel } from '@/common/storage';
+import type { CliProviderApplyPayload } from '@/common/types/provider';
 import { buildClaudeEnv, patchCodexConfig, isOfficialCliPreset, CLAUDE_PROVIDER_PRESETS, CODEX_PROVIDER_PRESETS, CLAUDE_THIRD_PARTY_ENV_KEYS } from './cliProviderUtils';
+
+const applyProvider = ipcBridge.provider.apply.invoke as (payload: CliProviderApplyPayload) => Promise<{ success: boolean; msg?: string }>;
 
 /**
  * Apply CLI model configuration when user manually selects a model
@@ -79,7 +82,7 @@ async function applyClaudeModel(presetName: string, config: { model?: string; ap
   };
 
   // Call IPC to write config
-  const result = await ipcBridge.provider.apply.invoke({
+  const result = await applyProvider({
     target: 'claude',
     env,
     clearEnvKeys: clearEnvKeys.length ? clearEnvKeys : undefined,
@@ -112,7 +115,7 @@ async function applyCodexModel(presetName: string, config: { model?: string; api
   const clearAuthKeys = shouldUseOfficial ? ['OPENAI_API_KEY'] : undefined;
 
   // Call IPC to write config
-  const result = await ipcBridge.provider.apply.invoke({
+  const result = await applyProvider({
     target: 'codex',
     authPatch,
     clearAuthKeys,

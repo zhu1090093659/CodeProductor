@@ -31,6 +31,8 @@ class AcpAgentManager extends BaseAgentManager<AcpAgentManagerData> {
   private bootstrap: Promise<AcpAgent> | undefined;
   private isFirstMessage: boolean = true;
   options: AcpAgentManagerData;
+  // Track current thought for persistence on finish
+  private pendingThought: { msg_id: string; data: { subject: string; description: string }; createdAt: number } | null = null;
 
   constructor(data: AcpAgentManagerData) {
     super('acp', data);
@@ -98,6 +100,17 @@ class AcpAgentManager extends BaseAgentManager<AcpAgentManagerData> {
             return; // Don't process further / 不需要继续处理
           }
 
+          // Track thought for persistence on finish (finish event goes through onSignalEvent)
+          // Record timestamp when thought first arrives to ensure correct ordering
+          if (v.type === 'thought') {
+            this.pendingThought = {
+              msg_id: v.msg_id,
+              data: v.data as { subject: string; description: string },
+              createdAt: this.pendingThought?.createdAt || Date.now(), // Keep first timestamp
+            };
+            console.log('[AcpAgentManager] Tracked thought:', { msg_id: v.msg_id, hasData: !!v.data });
+          }
+
           if (v.type !== 'thought') {
             const tMessage = transformMessage(v as IResponseMessage);
             if (tMessage) {
@@ -107,7 +120,26 @@ class AcpAgentManager extends BaseAgentManager<AcpAgentManagerData> {
           ipcBridge.acpConversation.responseStream.emit(v);
         },
         onSignalEvent: (v) => {
-          // 仅发送信号到前端，不更新消息列表
+          console.log('[AcpAgentManager] onSignalEvent:', { type: v.type, hasPendingThought: !!this.pendingThought });
+          // Persist thought to database when conversation finishes
+          if (v.type === 'finish' && this.pendingThought) {
+            console.log('[AcpAgentManager] Saving thought on finish:', this.pendingThought);
+            const thoughtMessage = transformMessage({
+              type: 'thought',
+              conversation_id: v.conversation_id,
+              msg_id: this.pendingThought.msg_id,
+              data: this.pendingThought.data,
+            } as IResponseMessage);
+            // Use the original timestamp to ensure correct message ordering
+            if (thoughtMessage) {
+              thoughtMessage.createdAt = this.pendingThought.createdAt;
+              console.log('[AcpAgentManager] Transformed thought message:', thoughtMessage);
+              addOrUpdateMessage(v.conversation_id, thoughtMessage, data.backend);
+              console.log('[AcpAgentManager] Called addOrUpdateMessage for thought');
+            }
+            this.pendingThought = null;
+          }
+          // 发送信号到前端，不更新消息列表
           ipcBridge.acpConversation.responseStream.emit(v);
         },
       });

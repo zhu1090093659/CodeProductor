@@ -509,9 +509,14 @@ const MessageList: React.FC<{
     const restoredEntries: ThoughtEntry[] = [];
     let prevMessageId: string | null = null;
 
+    // Debug: log all message types in list
+    const messageTypes = list.map((m) => m.type);
+    console.log('[MessageList] Restore check - message types in list:', messageTypes);
+
     for (const msg of list) {
       if (msg.type === 'thought') {
         const thoughtMsg = msg as IMessageThought;
+        console.log('[MessageList] Found thought message:', { id: msg.id, msg_id: msg.msg_id, content: thoughtMsg.content });
         restoredEntries.push({
           id: msg.msg_id || msg.id,
           thought: thoughtMsg.content,
@@ -524,10 +529,14 @@ const MessageList: React.FC<{
       }
     }
 
+    console.log('[MessageList] Restored entries count:', restoredEntries.length);
     if (restoredEntries.length === 0) return;
 
     // Only restore if thoughtEntries is currently empty (avoid overwriting running thoughts)
-    setThoughtEntries((prev) => (prev.length === 0 ? restoredEntries : prev));
+    setThoughtEntries((prev) => {
+      console.log('[MessageList] Setting thoughtEntries - prev.length:', prev.length, 'restoredEntries.length:', restoredEntries.length);
+      return prev.length === 0 ? restoredEntries : prev;
+    });
   }, [list]);
 
   useEffect(() => {
