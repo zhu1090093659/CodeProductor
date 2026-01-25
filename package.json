@@ -1,7 +1,7 @@
 {
   "name": "CodeConductor",
   "productName": "CodeConductor",
-  "version": "1.7.13",
+  "version": "1.7.14",
   "description": "Transform your command-line AI agent into a modern, efficient AI Chat interface.",
   "main": ".webpack/main",
   "scripts": {
