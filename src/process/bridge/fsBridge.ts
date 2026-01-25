@@ -756,7 +756,7 @@ export function initFsBridge(): void {
           }
 
           // Try to extract description from first paragraph after heading
-          const descMatch = content.match(/^#\s+.+\n+(.+?)(?:\n\n|\n#|$)/s);
+          const descMatch = content.match(/^#\s+.+\n+([\s\S]+?)(?:\n\n|\n#|$)/);
           if (descMatch) {
             description = descMatch[1].trim().slice(0, 200);
           }

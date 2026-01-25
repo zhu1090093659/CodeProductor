@@ -54,6 +54,15 @@
 
 ## Changelog
 
+### 1.7.13
+
+- Feature: Add custom assistant creation and management.
+- Feature: Add agent selection and categorization in the Guid page.
+- Feature: Add skill deletion support.
+- Fix: Initialize theme using DEFAULT_THEME instead of system detection.
+- Chore: Update About modal links for new repository ownership.
+- Chore: Update electron-builder config for improved installer behavior.
+
 ### 1.7.12
 
 - Added ActionToolbar to improve conversation interactions.
