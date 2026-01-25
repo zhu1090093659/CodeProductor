@@ -54,6 +54,12 @@
 
 ## Changelog
 
+### 1.7.12
+
+- Added ActionToolbar to improve conversation interactions.
+- Added CLI model list hook and manual selection configuration handling.
+- Improved message processing and logging for easier debugging.
+
 ### 1.7.8
 
 - Enhanced chat UI components with improved visual design and message styling.
