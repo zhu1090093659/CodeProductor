@@ -29,17 +29,17 @@ const AboutModalContent: React.FC = () => {
   const linkItems = [
     {
       title: t('settings.helpDocumentation'),
-      url: 'https://github.com/iOfficeAI/CodeConductor/wiki',
+      url: 'https://github.com/zhu1090093659/CodeConductor/wiki',
       icon: <Right theme='outline' size='16' />,
     },
     {
       title: t('settings.updateLog'),
-      url: 'https://github.com/iOfficeAI/CodeConductor/releases',
+      url: 'https://github.com/zhu1090093659/CodeConductor/releases',
       icon: <Right theme='outline' size='16' />,
     },
     {
       title: t('settings.feedback'),
-      url: 'https://github.com/iOfficeAI/CodeConductor/issues',
+      url: 'https://github.com/zhu1090093659/CodeConductor/issues',
       icon: <Right theme='outline' size='16' />,
     },
     {
@@ -67,7 +67,7 @@ const AboutModalContent: React.FC = () => {
             <Typography.Text className='text-14px text-t-secondary mb-12px text-center'>{t('settings.appDescription')}</Typography.Text>
             <div className='flex items-center justify-center gap-8px'>
               <span className='px-10px py-4px rd-6px text-13px bg-fill-2 text-t-primary font-500'>v{packageJson.version}</span>
-              <div className='text-t-primary cursor-pointer hover:text-t-secondary transition-colors p-4px' onClick={() => openLink('https://github.com/iOfficeAI/CodeConductor').catch((error) => console.error('Failed to open link:', error))}>
+              <div className='text-t-primary cursor-pointer hover:text-t-secondary transition-colors p-4px' onClick={() => openLink('https://github.com/zhu1090093659/CodeConductor').catch((error) => console.error('Failed to open link:', error))}>
                 <Github theme='outline' size='20' />
               </div>
             </div>
