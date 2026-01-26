@@ -54,6 +54,13 @@
 
 ## Changelog
 
+### 1.7.15
+
+- Feature: Add Mem0 memory service integration for persistent agent memory.
+- Feature: Implement CLI installation management for streamlined tool setup.
+- Feature: Introduce image generation tool integration.
+- Fix: Update tag handling logic in build-and-release workflow.
+
 ### 1.7.13
 
 - Feature: Add custom assistant creation and management.

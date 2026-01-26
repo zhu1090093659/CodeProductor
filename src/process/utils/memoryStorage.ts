@@ -19,10 +19,10 @@ export const addMemoryFromConversationIfEnabled = async (conversationId: string)
     if (!data?.length) return;
 
     const messages = data
-      .filter((m) => m.type === 'text' && m.content?.content)
+      .filter((m) => m.type === 'text' && m.content && 'content' in m.content && m.content.content)
       .map((m) => ({
         role: (m.position === 'right' ? 'user' : 'assistant') as 'user' | 'assistant',
-        content: m.content.content as string,
+        content: (m.content as { content: string }).content,
       }));
 
     if (messages.length < 2) return;
