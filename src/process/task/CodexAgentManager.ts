@@ -26,6 +26,8 @@ import { mapPermissionDecision } from '@/common/codex/utils';
 import { PERMISSION_DECISION_MAP } from '@/common/codex/types/permissionTypes';
 import { handlePreviewOpenEvent } from '@process/utils/previewUtils';
 import { applyInteractivePromptIfEnabled } from '@process/utils/interactivePrompt';
+import { applyMemoryRetrievalIfEnabled } from '@process/utils/memoryRetrieval';
+import { addMemoryFromConversationIfEnabled } from '@process/utils/memoryStorage';
 
 const APP_CLIENT_NAME = getConfiguredAppClientName();
 const APP_CLIENT_VERSION = getConfiguredAppClientVersion();
@@ -183,6 +185,10 @@ class CodexAgentManager extends BaseAgentManager<CodexAgentManagerData> implemen
       let processedContent = this.agent.getFileOperationHandler().processFileReferences(contentToSend, data.files);
       if (hasContent) {
         processedContent = await applyInteractivePromptIfEnabled(processedContent);
+        // Inject memory context on first message only
+        if (this.isFirstMessage) {
+          processedContent = await applyMemoryRetrievalIfEnabled(processedContent);
+        }
       }
 
       // 如果是第一条消息，通过 newSession 发送以避免双消息问题
@@ -432,6 +438,13 @@ class CodexAgentManager extends BaseAgentManager<CodexAgentManagerData> implemen
     // 处理 preview_open 事件（chrome-devtools 导航拦截）
     if (handlePreviewOpenEvent(message)) {
       return; // Don't process further / 不需要继续处理
+    }
+
+    // Auto-add memory when conversation finishes (Mem0 will intelligently extract valuable info)
+    if (message.type === 'finish') {
+      addMemoryFromConversationIfEnabled(this.conversation_id).catch((err) => {
+        console.error('[CodexAgentManager] Failed to add memory:', err);
+      });
     }
 
     // Backend handles persistence if needed

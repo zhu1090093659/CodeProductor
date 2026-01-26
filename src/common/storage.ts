@@ -61,6 +61,19 @@ export interface IConfigStorageRefer {
   };
   'tools.interactiveMode'?: boolean;
   'tools.agentBrowser'?: AgentBrowserConfig;
+  /**
+   * Mem0 memory service configuration
+   * Provides persistent memory for AI conversations
+   */
+  'tools.mem0'?: {
+    enabled: boolean; // Enable/disable the memory feature
+    baseUrl: string; // API base URL (e.g., "https://api.mem0.ai")
+    apiKey: string; // API key for authentication
+    userId: string; // User identifier for memory isolation
+    retrievalEnabled: boolean; // Enable memory retrieval before each new session
+    autoAddEnabled: boolean; // Enable auto memory storage after conversation ends
+    retrievalLimit: number; // Max number of memories to retrieve (default: 5)
+  };
   // 是否在粘贴文件到工作区时询问确认（true = 不再询问）
   'workspace.pasteConfirm'?: boolean;
   // guid 页面上次选择的 agent 类型 / Last selected agent type on guid page

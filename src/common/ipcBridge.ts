@@ -174,6 +174,15 @@ export const imageGeneration = {
   getStatus: bridge.buildProvider<IBridgeResponse<{ enabled: boolean; configured: boolean }>, void>('image-generation.get-status'),
 };
 
+// Mem0 memory service API
+export const mem0Service = {
+  search: bridge.buildProvider<IBridgeResponse<{ memories: Array<{ id: string; memory: string; score: number }> }>, { query: string }>('mem0.search'),
+  getAll: bridge.buildProvider<IBridgeResponse<{ memories: Array<{ id: string; memory: string; created_at: string }> }>, void>('mem0.get-all'),
+  add: bridge.buildProvider<IBridgeResponse, { messages: Array<{ role: 'user' | 'assistant'; content: string }> }>('mem0.add'),
+  delete: bridge.buildProvider<IBridgeResponse, { memoryId: string }>('mem0.delete'),
+  getStatus: bridge.buildProvider<IBridgeResponse<{ enabled: boolean; configured: boolean; retrievalEnabled: boolean }>, void>('mem0.get-status'),
+};
+
 export const provider = {
   apply: bridge.buildProvider<IBridgeResponse, CliProviderApplyPayload>('provider.apply'),
 };

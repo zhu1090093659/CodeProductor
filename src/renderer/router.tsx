@@ -13,6 +13,7 @@ import SkillSettings from './pages/settings/SkillSettings';
 import SystemSettings from './pages/settings/SystemSettings';
 import ToolsSettings from './pages/settings/ToolsSettings';
 import SuperpowersSettings from './pages/settings/SuperpowersSettings';
+import MemorySettings from './pages/settings/MemorySettings';
 import CommandSettings from './pages/settings/CommandSettings';
 import LoginPage from './pages/login';
 import ComponentsShowcase from './pages/test/ComponentsShowcase';
@@ -49,6 +50,7 @@ const PanelRoute: React.FC<{ layout: React.ReactElement }> = ({ layout }) => {
           <Route path='/settings/system' element={<SystemSettings />} />
           <Route path='/settings/about' element={<About />} />
           <Route path='/settings/tools' element={<ToolsSettings />} />
+          <Route path='/settings/memory' element={<MemorySettings />} />
           <Route path='/settings/skills' element={<SkillSettings />} />
           <Route path='/settings/commands' element={<CommandSettings />} />
           <Route path='/settings/superpowers' element={<SuperpowersSettings />} />

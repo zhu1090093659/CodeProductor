@@ -12,6 +12,8 @@ import { addMessage, addOrUpdateMessage, nextTickToLocalFinish } from '../messag
 import BaseAgentManager from './BaseAgentManager';
 import { handlePreviewOpenEvent } from '../utils/previewUtils';
 import { applyInteractivePromptIfEnabled } from '../utils/interactivePrompt';
+import { applyMemoryRetrievalIfEnabled } from '../utils/memoryRetrieval';
+import { addMemoryFromConversationIfEnabled } from '../utils/memoryStorage';
 
 interface AcpAgentManagerData {
   workspace?: string;
@@ -139,6 +141,12 @@ class AcpAgentManager extends BaseAgentManager<AcpAgentManagerData> {
             }
             this.pendingThought = null;
           }
+          // Auto-add memory when conversation finishes (Mem0 will intelligently extract valuable info)
+          if (v.type === 'finish') {
+            addMemoryFromConversationIfEnabled(v.conversation_id).catch((err) => {
+              console.error('[AcpAgentManager] Failed to add memory:', err);
+            });
+          }
           // 发送信号到前端，不更新消息列表
           ipcBridge.acpConversation.responseStream.emit(v);
         },
@@ -162,6 +170,10 @@ class AcpAgentManager extends BaseAgentManager<AcpAgentManagerData> {
       }
       if (hasContent) {
         contentToSend = await applyInteractivePromptIfEnabled(contentToSend);
+        // Inject memory context on first message only
+        if (this.isFirstMessage) {
+          contentToSend = await applyMemoryRetrievalIfEnabled(contentToSend);
+        }
       }
       // Save user message to chat history ONLY after successful sending
       if (data.msg_id && data.content) {
