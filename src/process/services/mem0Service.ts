@@ -111,7 +111,7 @@ class Mem0Service {
   }
 
   async getStatus(): Promise<{ enabled: boolean; configured: boolean; retrievalEnabled: boolean }> {
-    const config = await ProcessConfig.get('tools.mem0').catch(() => null);
+    const config = await ProcessConfig.get('tools.mem0').catch((): null => null);
     return {
       enabled: config?.enabled ?? false,
       configured: !!(config?.baseUrl && config?.apiKey && config?.userId),

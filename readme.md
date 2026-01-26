@@ -54,6 +54,10 @@
 
 ## Changelog
 
+### 1.7.16
+
+- Enhancement: Update Mem0 service to use ProcessConfig and v2 API for improved memory management.
+
 ### 1.7.15
 
 - Feature: Add Mem0 memory service integration for persistent agent memory.
